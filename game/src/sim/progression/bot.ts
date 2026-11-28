@@ -152,7 +152,7 @@ function goalOf(world: World, archetype: Exclude<Policy, RoadPolicy>, options: B
 
 
 const ENCOUNTER_REPLIES: Partial<Record<TopicId, LineId>> = {
-  tale: 'goOnThen', salvageTip: 'noThanks', challenge: 'notLookingForTrouble', courierShort: 'noCharge', courierGrudge: 'letsCallItEven',
+  claimBid: 'notSelling', tale: 'goOnThen', salvageTip: 'noThanks', challenge: 'notLookingForTrouble', courierShort: 'noCharge', courierGrudge: 'letsCallItEven',
 };
 const DEFENDER_REPLIES: Partial<Record<TopicId, LineId>> = { ...ENCOUNTER_REPLIES, demand: 'comeAndGetIt', demandCut: 'comeAndGetIt', surrender: 'comeAndGetIt' };
 const REFUSE_TOW: Partial<Record<TopicId, LineId>> = { tow: 'noThanks', towFree: 'noThanks' };

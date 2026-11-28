@@ -48,6 +48,7 @@ const PREPARE_VARS: Record<PrepareId, string[]> = {
   craterNews: ['news'],
   nearestTown: ['town', 'way'],
   towOffer: ['town', 'fee'],
+  claimBidTerms: ['town', 'fee'],
   patchTerms: ['deal'],
   truceAnswer: ['answer', 'haul', 'price'],
   mercyAnswer: ['answer', 'haul', 'price'],

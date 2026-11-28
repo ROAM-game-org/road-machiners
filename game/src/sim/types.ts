@@ -416,7 +416,7 @@ export type Obstacle =
 
 export type BrokenProp = { obstacle: Obstacle; turn: number };
 
-export type StateKindId = 'feud' | 'backedOff' | 'tow' | 'turnedDown' | 'towPromise' | 'answering' | 'patch' | 'truce' | 'grievance' | 'plea' | 'helpRefused' | 'trade' | 'handover' | 'revenge' | 'escort' | 'strayFire' | 'aid' | 'combat' | 'lootWarning' | 'crew' | 'hire' | 'cavalcade' | 'offering' | 'drag' | 'lookOver' | 'sizedUp' | 'bountyStop';
+export type StateKindId = 'claimBid' | 'feud' | 'backedOff' | 'tow' | 'turnedDown' | 'towPromise' | 'answering' | 'patch' | 'truce' | 'grievance' | 'plea' | 'helpRefused' | 'trade' | 'handover' | 'revenge' | 'escort' | 'strayFire' | 'aid' | 'combat' | 'lootWarning' | 'crew' | 'hire' | 'cavalcade' | 'offering' | 'drag' | 'lookOver' | 'sizedUp' | 'bountyStop';
 export type StateEnding = 'expired' | 'fulfilled' | 'broken';
 export type Plea = 'truce' | 'mercy';
 export type StateData =
@@ -434,6 +434,7 @@ export type StateData =
   | { kind: 'offering'; core: Vec; closest: number }
   | { kind: 'drag'; drop: Vec }
   | { kind: 'bountyStop'; owed: number; answered: boolean }
+  | { kind: 'claimBid'; contract: string; price: number; accepted: boolean }
   | { kind: 'none' };
 export type LootWarnAnswer = 'comply' | 'refuse' | 'fightBack';
 export type QueuedSpawn = { templateId: string; siteId: string };
@@ -607,6 +608,7 @@ export type GameEvent =
   | { t: 'contract'; contract: Contract; outcome: 'accepted' | 'expiring' | 'fulfilled' | 'done' | 'failed' | 'late' | 'overdue' | 'lapsed' | 'released' | 'apart'; cause?: 'rival' }
   | { t: 'contract'; contract: Contract; outcome: 'found' | 'surveyed'; site: string; cause?: undefined }
   | { t: 'claimRival'; contract: string; vehicle: string }
+  | { t: 'claimRivalQuit'; contract: string; vehicle: string }
   | { t: 'claimLead'; contract: string; driver: string }
   | { t: 'discover'; location: string }
   | { t: 'encounter'; vehicle: string; encounter: EncounterId | CourierTopic }

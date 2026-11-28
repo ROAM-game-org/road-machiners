@@ -91,6 +91,7 @@ const STOPS: StopTable = {
   money: no,
   contract: (e) => CONTRACT_STOPS.includes(e.outcome),
   claimRival: no,
+  claimRivalQuit: no,
   claimLead: no,
   discover: no,
   encounter: no,

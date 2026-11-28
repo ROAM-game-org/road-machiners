@@ -5,7 +5,7 @@ import { WRECK_LOOKS } from '../data/territory';
 import { playerTrucks, playerVehicle } from './damage';
 import { isDefeated, isKnockedOut } from './defeat';
 import { pushGoal } from './npc-activities';
-import { canStowPart, liveClaims, MAX_RADIUS, oldSpotOf, reachable, type ClaimContract } from './salvage';
+import { canStowPart, claimantOf, liveClaims, MAX_RADIUS, oldSpotOf, reachable, type ClaimContract } from './salvage';
 import { navLayer, type NavLayer } from './nav/layer';
 import { ROAD_INDEX } from './road-index';
 import { spotLookOf, territoryAt, territoryOfStock } from './territory';
@@ -94,8 +94,9 @@ function heldByPlayer(world: World, partId: string): boolean {
 }
 
 function heldByRival(world: World, c: ClaimContract): boolean {
-  const rival = world.vehicles.find((v) => v.id === c.rival);
-  return rival !== undefined && carriesPart(rival, c.partId);
+  const rival = rivalRunning(world, c);
+  if (rival === null) return false;
+  return carriesPart(rival, c.partId) || world.salvage.some((s) => s.parts.some((p) => p.id === c.partId) && claimantOf(world, s) === rival);
 }
 
 export function claimPartHeld(world: World, c: ClaimContract): PartWhere {
@@ -214,4 +215,13 @@ export function bakeClaimClues(world: World): ClaimClueBake {
 
 export function leadOf(stockPos: Vec, from: Vec): { angle: number; distance: number } {
   return { angle: snapAngle(Math.atan2(stockPos.y - from.y, stockPos.x - from.x)), distance: roundTo(dist(from, stockPos), CONTRACTS.claim.leadStepTiles) };
+}
+
+export function claimRunBy(world: World, vehicle: Vehicle): ClaimContract | null {
+  return liveClaims(world).find((c) => c.rival === vehicle.id && rivalRunning(world, c) === vehicle) ?? null;
+}
+
+export function claimOfRelic(world: World, rival: Vehicle, carrier: Vehicle): ClaimContract | null {
+  const claim = claimRunBy(world, rival);
+  return claim !== null && carriesPart(carrier, claim.partId) ? claim : null;
 }

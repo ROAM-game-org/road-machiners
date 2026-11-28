@@ -1,3 +1,4 @@
+import { claimOfRelic } from './claims';
 import { GOODS } from '../data/goods';
 import { LOOK_OVER, type DecisionOptions } from '../data/npcs';
 import { fightsAgainst, huntsForLoot, inCombat, inCombatWith, isHostile } from './combat';
@@ -115,6 +116,7 @@ export function checkSizedUp(world: World, s: NpcState): StateEnding | null {
 
 export function knowsCargo(world: World, looker: Vehicle, target: Vehicle): boolean {
   if (stateOf(world, 'sizedUp', looker.id, target.id)) return true;
+  if (claimOfRelic(world, looker, target) !== null && canVehicleSee(world, looker, target.pos)) return true;
   return isPlayerTruck(world, looker) && hasPerk(world, 'cargoEye') && canVehicleSee(world, looker, target.pos);
 }
 
@@ -160,7 +162,7 @@ export function onPreySeen(world: World, vehicle: Vehicle): void {
   }
 }
 
-function startRobbery(world: World, vehicle: Vehicle, target: Vehicle): void {
+export function startRobbery(world: World, vehicle: Vehicle, target: Vehicle): void {
   addState(world, 'feud', vehicle.id, target.id, { kind: 'feud', robbery: true });
   world.events.push({ t: 'hostile', vehicle: vehicle.id, against: target.id });
   reportIncident(world, { aggressor: vehicle, victim: target, deed: 'robbed', victimFights: false });

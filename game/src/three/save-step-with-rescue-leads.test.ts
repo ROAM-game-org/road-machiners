@@ -11,8 +11,8 @@ const step = TINY_STEPS.find((s) => s.name === 'withRescueLeads')!;
 const migrated = (): Saved => step.step(structuredClone(OLD) as SavedJson) as unknown as Saved;
 
 describe('save step withRescueLeads', () => {
-  it('is the newest tiny step before withSearchFinds', () => {
-    expect(TINY_STEPS.at(-2)).toBe(step);
+  it('is the third from the newest tiny step', () => {
+    expect(TINY_STEPS.at(-3)).toBe(step);
   });
 
   it('gives every rescue a null lead on the board, in hand and in the past', () => {

@@ -6,6 +6,7 @@ import { getResources } from './resources';
 import { UNITS } from '../data/units';
 import { findSpot, freeCells, gridOf, isMounted, type Spot } from './grid';
 import { cargoRoom, stowPlace } from './inventory';
+import { claimOfRelic } from './claims';
 import { looseCargo, takeError } from './salvage';
 import type { CallVar, GridItem, Vehicle, World } from './types';
 import { payoutM } from './money';
@@ -125,8 +126,15 @@ export function cashCut(world: World, victim: Vehicle): number {
   return payoutM(cut);
 }
 
+export function demandedHaul(world: World, robber: Vehicle, victim: Vehicle): GridItem[] {
+  const claim = claimOfRelic(world, robber, victim);
+  const relic = claim && victim.items.find((item) => item.kind === 'part' && item.part.id === claim.partId);
+  if (relic) return [relic];
+  return robber.brain ? cargoHaul(robber, victim) : looseCargo(victim);
+}
+
 export function ransomOf(world: World, robber: Vehicle, victim: Vehicle): Ransom {
-  const haul = robber.brain ? cargoHaul(robber, victim) : looseCargo(victim);
+  const haul = demandedHaul(world, robber, victim);
   return { haul, money: haul.length > 0 ? haulPrice(haul) : cashCut(world, victim) };
 }
 

@@ -219,9 +219,12 @@ export function mayTakeClaimed(world: World, vehicle: Vehicle, claim: ClaimContr
 export function lockedFrom(world: World, vehicle: Vehicle, stock: SalvageStock): Set<string> {
   const relics = [...stock.parts, ...stock.hidden.parts].filter(isRelic);
   if (relics.length === 0) return new Set();
-  const claim = claimOn(world, stock);
-  const allowed = claim && mayTakeClaimed(world, vehicle, claim) ? claim.partId : null;
-  return new Set(relics.filter((part) => part.id !== allowed).map((part) => part.id));
+  return new Set(relics.filter((part) => !mayTakeRelic(world, vehicle, part)).map((part) => part.id));
+}
+
+function mayTakeRelic(world: World, vehicle: Vehicle, relic: PartInstance): boolean {
+  const claim = liveClaims(world).find((c) => c.partId === relic.id);
+  return claim !== undefined && mayTakeClaimed(world, vehicle, claim);
 }
 
 export function visibleParts(world: World, vehicle: Vehicle, stock: SalvageStock): PartInstance[] {
