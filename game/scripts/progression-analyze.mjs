@@ -192,6 +192,7 @@ async function analyzeWorld(name, path) {
   printOffRoad(lines);
   printRouteStyles(lines);
   printAmbushes(lines);
+  printHoldUps(lines);
   printNpcDeaths(lines);
   printSolvency(lines);
 }
@@ -265,6 +266,16 @@ function printAmbushes(lines) {
   const byPrevious = Map.groupBy(started, (e) => e.previous);
   const fightText = [...byPrevious.entries()].map(([previous, es]) => `${previous} ${es.length}`).join(', ') || 'none';
   console.log(`raider passes on visible prey: ${passText}; raider fights begun from a hunt: ${fightText}`);
+}
+
+function printHoldUps(lines) {
+  const holdUps = lines.flatMap((l) => l.events ?? []).filter((e) => e.t === 'holdUp');
+  const players = new Set(lines.flatMap((l) => l.trucks ?? []).filter((v) => v.who === 'player').map((v) => v.id));
+  const text = (list) => ['cargo', 'money'].map((paid) => {
+    const of = list.filter((e) => e.paid === paid);
+    return `${paid} ${of.length} (value ${Math.round(of.reduce((sum, e) => sum + e.value, 0))})`;
+  }).join(', ');
+  console.log(`hold-ups: all ${holdUps.length}: ${text(holdUps)}; bot as victim: ${text(holdUps.filter((e) => players.has(e.victim)))}`);
 }
 
 function offRoadReason(v) {
