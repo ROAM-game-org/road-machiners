@@ -9,7 +9,7 @@ import { mountPart, plannedTruck } from "../sim/inventory";
 import { takeFromTruck } from "../sim/salvage";
 import { refreshVision } from "../sim/vision";
 import { resolve } from "../text/resolve";
-import { cellAt, chooseLayout, drawnLayer, GridScale, iconBox, type FitRoom, type GridMetrics, LAYERS_PER_BAND, gridMetrics, gridSize, stackedLayout, truckArea, itemLabel, itemName, rectOf, refitMarks, removalMarks, takenMarks, workMarkOf } from "./inventory-draw";
+import { cellAt, chooseHosted, chooseLayout, drawnLayer, GridScale, iconBox, type FitRoom, type GridMetrics, LAYERS_PER_BAND, gridMetrics, gridSize, stackedLayout, truckArea, itemLabel, itemName, rectOf, refitMarks, removalMarks, takenMarks, workMarkOf } from "./inventory-draw";
 import { turnsToTry } from "./inventory-moves";
 import { cellCenter, cellSteps } from "../sim/body";
 import { backgroundNeeds, garageLooks, ownNeed, pivotPx, shownNeed, type GarageLook } from "./garage-draw";
@@ -332,6 +332,10 @@ describe("the choice of a layout", () => {
     expect(layout.pxPerMeter).toBeGreaterThan(300 / 14.3);
   });
 
+  it("names no storage place when the room names none", () => {
+    expect(chooseLayout([room(1, 500, 300)], { width: 3, truckHeight: 10, spareHeight: 0, col: 1 }).store).toBeUndefined();
+  });
+
   it("keeps cargo below on a tie", () => {
     const layout = chooseLayout([room(3, 5000, 5000)], { width: 3, truckHeight: 5, spareHeight: 2, col: 1 });
     expect(layout).toMatchObject({ cargoBeside: false, pxPerMeter: 42, spareCellPx: 42 });
@@ -446,5 +450,30 @@ describe("the turns the Rotate button tries", () => {
   it("ends one turn short of the start", () => {
     expect(turnsToTry(item("mg", 0))).toEqual([4, 1, 5, 2, 6, 3, 7]);
     expect(turnsToTry(item("stockEngine", 0))).toEqual([1]);
+  });
+});
+
+describe("the choice of a place for garage storage", () => {
+  const scout = { width: 3, truckHeight: 10, spareHeight: 0, col: 1 };
+  const place = (store: "beside" | "stacked", width: number): FitRoom => ({ columns: 1, width, height: 600, store });
+
+  it("puts storage beside the card while the truck column keeps room for a truck", () => {
+    expect(chooseHosted([place("beside", 70), place("stacked", 300)], scout).store).toBe("beside");
+  });
+
+  it("puts storage under the card when beside leaves the truck column too narrow", () => {
+    const layout = chooseHosted([place("beside", 40), place("stacked", 300)], scout);
+    expect(layout.store).toBe("stacked");
+    expect(layout.pxPerMeter).toBe(42);
+  });
+
+  it("makes the same choice for a tall truck and a short one", () => {
+    const hauler = { width: 3, truckHeight: 40, spareHeight: 0, col: 1 };
+    const rooms = [place("beside", 70), place("stacked", 300)];
+    expect(chooseHosted(rooms, hauler).store).toBe(chooseHosted(rooms, scout).store);
+  });
+
+  it("falls back to the column rule for a single room", () => {
+    expect(chooseHosted([{ columns: 1, width: 300, height: 600 }], scout).store).toBeUndefined();
   });
 });

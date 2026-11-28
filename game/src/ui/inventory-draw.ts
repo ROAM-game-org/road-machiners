@@ -7,7 +7,7 @@ import type { GridItem, PartInstance, Vehicle, World } from "../sim/types";
 import { plannedRefit } from "../sim/inventory";
 import { playerVehicle } from "../sim/damage";
 import { workOf } from "../sim/states";
-import { disabledWith, el } from "./dom";
+import { disabledWith, el, uiRoot } from "./dom";
 import { cellSteps } from "../sim/body";
 import { uiSize } from "./ui-size";
 import { truckOutline } from "./plans";
@@ -22,6 +22,7 @@ const CARGO_BESIDE_GAP_PX = 20;
 const CELL_PX = 42;
 const MIN_CLICK_CELL_PX = 24;
 const STACKED_MIN_CELL_PX = 28;
+const BESIDE_MIN_TRUCK_PX = 64;
 
 export type PixelRect = { left: number; top: number; width: number; height: number };
 
@@ -103,8 +104,9 @@ export function cellUnder(m: GridMetrics, grid: HTMLElement, clientX: number, cl
   return cellAt(m, uiSize().toLayer(clientX - r.left), uiSize().toLayer(clientY - r.top));
 }
 
-export type FitRoom = { columns: number; width: number; height: number };
-export type GridLayout = { columns: number; cargoBeside: boolean; pxPerMeter: number; spareCellPx: number };
+export type StorePlace = "beside" | "stacked";
+export type FitRoom = { columns: number; width: number; height: number; store?: StorePlace };
+export type GridLayout = { columns: number; cargoBeside: boolean; pxPerMeter: number; spareCellPx: number; store?: StorePlace };
 
 export function truckMeters(chassisId: string, g: Grid): { width: number; truckHeight: number; spareHeight: number; col: number } {
   const steps = cellSteps(chassisId);
@@ -138,9 +140,17 @@ function layoutIn(room: FitRoom, truck: TruckMeters): GridLayout {
 }
 
 export function chooseLayout(rooms: readonly FitRoom[], truck: TruckMeters): GridLayout {
-  const tries = rooms.map((room) => layoutIn(room, truck));
+  const tries = rooms.map((room) => ({ ...layoutIn(room, truck), ...(room.store ? { store: room.store } : {}) }));
   const first = tries.find((t) => t.pxPerMeter * truck.col >= MIN_CLICK_CELL_PX);
   return first ?? tries.reduce((best, t) => (t.pxPerMeter > best.pxPerMeter ? t : best));
+}
+
+export function chooseHosted(rooms: readonly FitRoom[], truck: TruckMeters): GridLayout {
+  const stacked = rooms.find((room) => room.store === "stacked");
+  const beside = rooms.find((room) => room.store === "beside");
+  if (!stacked || !beside) return chooseLayout(rooms, truck);
+  const room = beside.width >= BESIDE_MIN_TRUCK_PX ? beside : stacked;
+  return { ...layoutIn(room, truck), store: room.store };
 }
 
 export function stackedLayout(height: number, truck: TruckMeters): GridLayout {
@@ -176,6 +186,10 @@ export class GridScale {
 
   get columns(): number {
     return this.layout?.columns ?? 3;
+  }
+
+  get storePlace(): StorePlace | undefined {
+    return this.layout?.store;
   }
 
   measure(v: Vehicle, own: boolean): GridMetrics {
@@ -261,6 +275,23 @@ function bandedWidth(root: HTMLElement): number {
   const truck = root.querySelector(".inv-truck");
   if (!truck) throw new Error("A hosted inventory has no truck screen");
   return widthOf(truck) - sidePadding(truck) - sidePadding(root.querySelector(".truck-shell"));
+}
+
+export function hostedRooms(box: HTMLElement, root: HTMLElement, height: number): FitRoom[] {
+  const split = box.closest<HTMLElement>(".town-split.banded");
+  const truck = root.querySelector(".inv-truck");
+  const column = truck?.closest(".town-truck");
+  if (!split || !truck || !column) throw new Error("A hosted inventory has no banded split");
+  if (!root.querySelector(".inv-store")) return [{ columns: 1, width: bandedWidth(root), height }];
+  if (uiRoot().classList.contains("tight")) return [{ columns: 1, width: bandedWidth(root), height, store: "stacked" }];
+  split.dataset.store = "stacked";
+  const stacked = bandedWidth(root);
+  split.dataset.store = "beside";
+  const beside = bandedWidth(root);
+  return [
+    { columns: 1, width: beside, height, store: "beside" },
+    { columns: 1, width: stacked, height, store: "stacked" },
+  ];
 }
 
 export function benchRooms(frame: HTMLElement, root: HTMLElement, grid: HTMLElement | null): FitRoom[] {

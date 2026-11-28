@@ -46,6 +46,7 @@ Every image shows a new game on seed 4242, in English, at 1280 by 720, the small
 - `shop.jpg`: the garage, buy parts.
 - `shop-row-open.jpg`: the garage, buy parts with one row open.
 - `shop-sell.jpg`: the garage, sell parts.
+- `garage-storage.jpg`: the garage, trucks, with stored parts on their own screen beside the picked part.
 - `garage.jpg`: the garage, trucks.
 - `paint.jpg`: the garage, paint.
 

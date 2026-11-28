@@ -107,11 +107,21 @@
 .inv-wrap > .inv-truck {
   grid-area: 1 / 1;
 }
-.inv-wrap > .inv-side {
+.inv-wrap > :is(.inv-side, .inv-store) {
   grid-area: 1 / 2;
   min-height: 0;
   overflow-y: auto;
   scrollbar-width: none;
+}
+.inv-wrap:has(> .inv-store) {
+  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+  row-gap: var(--space-9);
+}
+.inv-wrap:has(> .inv-store) > .inv-truck {
+  grid-area: 1 / 1 / 3 / 2;
+}
+.inv-wrap > .inv-store {
+  grid-area: 2 / 2;
 }
 :where(#ui:not(.narrow)) .truck-body .inv-wrap {
   flex: 1 1 auto;
@@ -507,14 +517,15 @@
   padding: 0;
   border-radius: 0;
 }
-.inv-side {
+.inv-side,
+.inv-store {
   display: flex;
   flex-direction: column;
   gap: var(--space-8);
   width: var(--inv-side-width);
   min-width: var(--inv-side-min);
 }
-.inv-side > * {
+:is(.inv-side, .inv-store) > * {
   flex: none;
 }
 .inv-inspection {
@@ -1003,6 +1014,24 @@
   grid-template-rows: auto minmax(0, 1fr);
   row-gap: var(--space-4);
 }
+.town-split.banded[data-store="beside"] {
+  --inv-side-width: var(--inv-side-beside);
+  --town-truck-w: min(calc(2 * var(--inv-side-width) + 3 * var(--space-9) + 300px), calc(100% - var(--panel-xl) - 2 * var(--space-9)));
+}
+.town-split.banded[data-store="beside"] .inv-wrap:has(> .inv-store) {
+  grid-template-columns: minmax(0, 1fr) var(--inv-side-width) var(--inv-side-width);
+  grid-template-rows: minmax(0, 1fr);
+  row-gap: 0;
+}
+.town-split.banded[data-store="beside"] .inv-wrap:has(> .inv-store) > .inv-truck {
+  grid-area: 1 / 1;
+}
+.town-split.banded[data-store="beside"] .inv-wrap > .inv-store {
+  grid-area: 1 / 3;
+}
+.town-split.banded[data-store="beside"] .town-band:has(> .inv-keys) {
+  grid-template-columns: minmax(0, 1fr) var(--inv-side-width) var(--inv-side-width);
+}
 .town-split.banded .inv-truck {
   margin-right: 0;
 }
@@ -1079,7 +1108,7 @@
   display: none;
 }
 
-.inv-side .inv-storage {
+.inv-store .inv-storage {
   min-height: 0;
   padding: 0;
   background: none;
@@ -1090,7 +1119,8 @@
   padding-top: 0;
   border-top: 0;
 }
-.inv-side {
+.inv-side,
+.inv-store {
   gap: var(--space-7);
 }
 .inv-costs:empty {

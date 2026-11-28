@@ -1094,14 +1094,14 @@ async function hostedColumnFaults(page) {
       const k = keys.getBoundingClientRect();
       if (c.top - k.bottom > 40 || c.top < k.bottom - 1 || c.left < k.left - 1 || c.left > k.right) faults.push('action costs are not right under the keys');
     }
-    for (const box of document.querySelectorAll('.truck-body .inv-side > *')) {
+    for (const box of document.querySelectorAll('.truck-body :is(.inv-side, .inv-store) > *')) {
       if (box.scrollHeight > box.clientHeight + 1) faults.push(`${name(box)} is shorter than its content`);
       const bottom = box.getBoundingClientRect().bottom;
       for (const row of box.querySelectorAll('.inv-chip, .inv-details, .inv-costs, .action-rows')) if (row.getBoundingClientRect().bottom > bottom + 1) faults.push(`${name(row)} draws below ${name(box)}`);
     }
     return faults;
   });
-  const nested = await nestedScrollFaults(page);
+  const nested = [...await nestedScrollFaults(page), ...await (await import('./layout-store.mjs')).storeScreenFaults(page)];
   return [...found.map((text) => ({ kind: 'hosted-column', path: '', text, sizes: '' })), ...nested];
 }
 
@@ -1218,7 +1218,7 @@ const closeOutpost = async (page) => {
 
 const OUTPOST_STATES = Object.fromEntries(
   ['market', 'buyParts', 'sellParts', 'trucks', 'paint'].flatMap((tab) =>
-    ['truck', 'hauler'].map((truck) => [`outpost-${tab}-${truck}`, { setup: (page) => openOutpost(page, tab, truck), teardown: closeOutpost, viewports: ONE_WINDOW, check: nestedScrollFaults }]),
+    ['truck', 'hauler'].map((truck) => [`outpost-${tab}-${truck}`, { setup: (page) => openOutpost(page, tab, truck), teardown: closeOutpost, viewports: ONE_WINDOW, check: async (page) => [...await nestedScrollFaults(page), ...await (await import('./layout-store.mjs')).storeScreenFaults(page)] }]),
   ),
 );
 

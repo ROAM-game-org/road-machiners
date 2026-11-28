@@ -982,6 +982,7 @@
   gap: var(--space-4);
 }
 .paint-switch {
+  flex-wrap: wrap;
   gap: var(--space-2);
 }
 .paint-slot-name {
@@ -1301,6 +1302,7 @@
 }
 .truck-head .card-name b {
   white-space: normal;
+  overflow-wrap: anywhere;
 }
 .truck-head > .screen-btn {
   flex: none;
@@ -1364,7 +1366,17 @@
   grid-template-rows: minmax(var(--town-split-min), 1fr) auto;
   row-gap: var(--space-9);
 }
+#ui.tight .town-split.banded .inv-wrap:has(> .inv-store) {
+  grid-template-rows: minmax(var(--town-split-min), 1fr) auto auto;
+}
 #ui.tight .town-split.banded .inv-wrap > .inv-side {
   grid-area: 2 / 1;
   width: auto;
+}
+#ui.tight .town-split.banded .inv-wrap > .inv-store {
+  grid-area: 3 / 1;
+  width: auto;
+}
+#ui.tight .town-split.banded .inv-wrap:has(> .inv-store) > .inv-truck {
+  grid-area: 1 / 1;
 }
