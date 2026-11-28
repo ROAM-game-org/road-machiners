@@ -404,7 +404,7 @@ describe('demand', () => {
   function ambush(mugging: 'demand' | 'attack' = 'demand'): { w: World; raider: Vehicle } {
     const w = emptyWorld({ x: 30, y: 30 });
     for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
-    addGoods(w, playerVehicle(w), 'scrap', 2);
+    addGoods(w, playerVehicle(w), 'electronics', 2);
     const raider = addVehicle(w, 'scrapjaw', 'buggy', ['stockEngine', 'mg'], { x: 40, y: 30 }, Math.PI);
     raider.brain = npcBrain('buggy', raider.pos, ['raider']);
     sizedUp(w, raider, playerVehicle(w));
@@ -1370,7 +1370,7 @@ describe('robber truce', () => {
   function holdup(robbery = true): { w: World; robber: Vehicle } {
     const w = emptyWorld({ x: 30, y: 30 });
     for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
-    addGoods(w, playerVehicle(w), 'scrap', 2);
+    addGoods(w, playerVehicle(w), 'electronics', 2);
     const robber = addVehicle(w, 'independent', 'buggy', ['stockEngine', 'mg'], { x: 40, y: 30 }, Math.PI);
     robber.brain = npcBrain('scavenger', robber.pos, ['scavenger', 'scumbag']);
     for (const y of [28, 32]) addVehicle(w, 'independent', 'buggy', ['stockEngine', 'mg'], { x: 40, y }, Math.PI).brain = npcBrain('scavenger', { x: 40, y }, ['scavenger']);

@@ -404,7 +404,7 @@ describe('player pleas', () => {
   it('spared mercy costs the player the cargo', () => {
     forceOption('mercyBegged', 'spare');
     const { w: start, npc } = atWar();
-    addGoods(start, playerVehicle(start), 'scrap', 2);
+    addGoods(start, playerVehicle(start), 'electronics', 2);
     let w = pick(callVehicle(start, npc.id), 'I give up. Let me go.');
     w = pick(w, 'Take what I carry. Just let me drive away.');
     w = pick(w, 'Fine. Take it.');

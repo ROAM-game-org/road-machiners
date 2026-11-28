@@ -127,12 +127,14 @@ export function cashCut(world: World, victim: Vehicle): number {
 
 export function ransomOf(world: World, robber: Vehicle, victim: Vehicle): Ransom {
   const haul = robber.brain ? cargoHaul(robber, victim) : looseCargo(victim);
-  return { haul, money: haul.length > 0 ? haulPrice(haul) : cashCut(world, victim) };
+  const cut = cashCut(world, victim);
+  if (haul.length === 0 || (robber.brain && cut > haulValue(haul))) return { haul: [], money: cut };
+  return { haul, money: haulPrice(haul) };
 }
 
 export function ransomValue(world: World, robber: Vehicle, victim: Vehicle): number {
-  const ransom = ransomOf(world, robber, victim);
-  return ransom.haul.length > 0 ? haulValue(ransom.haul) : ransom.money;
+  const haul = robber.brain ? cargoHaul(robber, victim) : looseCargo(victim);
+  return haul.length > 0 ? haulValue(haul) : cashCut(world, victim);
 }
 
 export function hasRansom(ransom: Ransom): boolean {

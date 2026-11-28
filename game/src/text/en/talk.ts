@@ -49,7 +49,7 @@ export const TALK = {
   'line.dealStayWhereYou': 'Deal. Stay where you are.',
   'line.dealTerms': m('{deal}', { deal: 'text' }),
   'line.demandCargoOrPay': m('Dump {haul} and roll on, or pay {price} and keep it. Or I take it off your wreck.', { haul: 'text', price: 'text' }),
-  'line.demandCutLine': m('{price}, and you roll on. Or I take it off your wreck.', { price: 'text' }),
+  'line.demandCutLine': m('Pay me {price} and roll on. Say no, and I settle this with guns.', { price: 'text' }),
   'line.noFreeRidePay': m('No free ride. Dump {haul} or pay {price}, and we call it square.', { haul: 'text', price: 'text' }),
   'line.noFreeRideCut': m('No free ride. {price}, and we call it square.', { price: 'text' }),
   'line.leaveItOrPay': m('Leave {haul} on the ground, or pay {price}, and go.', { haul: 'text', price: 'text' }),
