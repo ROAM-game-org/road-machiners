@@ -19,6 +19,8 @@ const FLAP_KINDS = new Set(['towDropped', 'towOffer', 'towHitched', 'stateEnded'
 const HUNT_ROAD_TARGET = 0.25;
 const HUNT_GOALS = new Set(HUNT.offRoadGoals);
 const GANGS = new Set(['scrapjaw', 'kiln']);
+const RAIDER_COUNTS = ['musters', 'formed', 'failed', 'asked', 'joined', 'crewFights', 'loneFights', 'sizeUps', 'flights', 'costlyFlights', 'passes', 'holdUps', 'knockouts'];
+const raiderBatch = { runs: 0, counts: Object.fromEntries(RAIDER_COUNTS.map((k) => [k, 0])), asks: new Map(), passes: new Map(), crewSizes: new Map() };
 
 const BROKE_BELOW = Math.min(ECONOMY.supplyPrice.fuel, ECONOMY.supplyPrice.supplies);
 const SOLVENCY_DAYS = 5;
@@ -35,6 +37,7 @@ for (const file of files) {
   analyze(name, await readLines(`${dir}/${file}`));
   await analyzeWorld(name, `${dir}/${name}.world.jsonl`);
 }
+printRaiderBatch();
 
 async function readLines(path) {
   const lines = [];
@@ -192,6 +195,7 @@ async function analyzeWorld(name, path) {
   printOffRoad(lines);
   printRouteStyles(lines);
   printAmbushes(lines);
+  printRaiders(name, lines);
   printNpcDeaths(lines);
   printSolvency(lines);
 }
@@ -265,6 +269,109 @@ function printAmbushes(lines) {
   const byPrevious = Map.groupBy(started, (e) => e.previous);
   const fightText = [...byPrevious.entries()].map(([previous, es]) => `${previous} ${es.length}`).join(', ') || 'none';
   console.log(`raider passes on visible prey: ${passText}; raider fights begun from a hunt: ${fightText}`);
+}
+
+function playerIdOf(lines) {
+  const snap = lines.flatMap((l) => l.trucks ?? []).find((v) => v.who === 'player');
+  return snap ? snap.id : 'player';
+}
+
+function crewTracker() {
+  const crews = new Map();
+  const crewOf = (id) => [...crews.entries()].find(([leader, members]) => leader === id || members.has(id));
+  return {
+    sizeOf: (id) => {
+      const found = crewOf(id);
+      return found ? found[1].size + 1 : 1;
+    },
+    note: (e) => {
+      if (e.t === 'crewFormed') crews.set(e.leader, new Set(e.members));
+      if (e.t === 'crewLeft') crews.get(e.leader)?.delete(e.member);
+      if (e.t === 'crewDisbanded') crews.delete(e.leader);
+      if (e.t === 'crewLed') {
+        const members = crews.get(e.fallen);
+        crews.delete(e.fallen);
+        if (members) crews.set(e.leader, new Set([...members, e.fallen].filter((id) => id !== e.leader)));
+      }
+    },
+  };
+}
+
+function tally(map, key) {
+  map.set(key, (map.get(key) ?? 0) + 1);
+}
+
+function raiderRun(lines) {
+  const player = playerIdOf(lines);
+  const faction = new Map(lines.flatMap((l) => l.trucks ?? []).map((v) => [v.id, v.faction]));
+  const isRaider = (id) => GANGS.has(faction.get(id));
+  const run = { counts: Object.fromEntries(RAIDER_COUNTS.map((k) => [k, 0])), asks: new Map(), passes: new Map(), crewSizes: new Map() };
+  const crews = crewTracker();
+  const recentFights = [];
+  for (const line of lines) {
+    for (const e of line.events ?? []) {
+      crews.note(e);
+      noteRaiderEvent(run, e, player, isRaider);
+      if (e.t === 'knockout' && recentFights.some((t) => line.t - t <= 20)) run.counts.knockouts += 1;
+    }
+    for (const aim of line.aims ?? []) {
+      if (!isRaider(aim.vehicle) || aim.target !== player) continue;
+      if (aim.activity === 'flee') {
+        run.counts.flights += 1;
+        if (aim.reason === 'avoidCostlyFight') run.counts.costlyFlights += 1;
+      }
+      if (aim.activity === 'sizeUp') run.counts.sizeUps += 1;
+      if (aim.activity === 'fight') {
+        recentFights.push(line.t);
+        const size = crews.sizeOf(aim.vehicle);
+        run.counts[size > 1 ? 'crewFights' : 'loneFights'] += 1;
+        if (size > 1) tally(run.crewSizes, size);
+      }
+    }
+  }
+  return run;
+}
+
+function noteRaiderEvent(run, e, player, isRaider) {
+  if (e.t === 'activity' && e.activity === 'muster') run.counts.musters += 1;
+  if (e.t === 'crewFormed') run.counts.formed += 1;
+  if (e.t === 'crewFailed') run.counts.failed += 1;
+  if (e.t === 'crewAsked') {
+    run.counts.asked += 1;
+    if (e.answer === 'join') run.counts.joined += 1;
+    tally(run.asks, e.cause);
+  }
+  if (e.t === 'preyPassed' && e.prey === player && isRaider(e.vehicle)) {
+    run.counts.passes += 1;
+    tally(run.passes, e.reason);
+  }
+  if (e.t === 'holdUp' && e.victim === player && isRaider(e.robber)) run.counts.holdUps += 1;
+}
+
+function mapText(map) {
+  return [...map.entries()].map(([k, n]) => `${k} ${n}`).join(', ') || 'none';
+}
+
+function raiderText(run) {
+  const c = run.counts;
+  return [
+    `  musters ${c.musters}, crews formed ${c.formed}, failed ${c.failed}; asks ${c.asked} (${c.joined} joined: ${mapText(run.asks)})`,
+    `  raider aims at the player: fights ${c.crewFights + c.loneFights} (crew ${c.crewFights}, sizes ${mapText(run.crewSizes)}; lone ${c.loneFights}), size-ups ${c.sizeUps}, flights ${c.flights} (avoidCostlyFight ${c.costlyFights})`,
+    `  prey passed on the player ${c.passes} (${mapText(run.passes)}); hold-ups ${c.holdUps}; player knockouts after a raider fight ${c.knockouts}`,
+  ].join('\n');
+}
+
+function printRaiders(name, lines) {
+  const run = raiderRun(lines);
+  console.log(`raider census (${name}):\n${raiderText(run)}`);
+  raiderBatch.runs += 1;
+  for (const k of RAIDER_COUNTS) raiderBatch.counts[k] += run.counts[k];
+  for (const key of ['asks', 'passes', 'crewSizes']) for (const [k, n] of run[key]) raiderBatch[key].set(k, (raiderBatch[key].get(k) ?? 0) + n);
+}
+
+function printRaiderBatch() {
+  if (raiderBatch.runs === 0) return;
+  console.log(`=== raider census, ${raiderBatch.runs} runs:\n${raiderText(raiderBatch)}`);
 }
 
 function offRoadReason(v) {

@@ -1,5 +1,5 @@
 import { getUpkeepReserve } from './economy';
-import { DECISIONS, HUNT, MIN_CHANCE, NPCS, NPC_BEHAVIOR, TRAITS } from '../data/npcs';
+import { DECISIONS, HUNT, MIN_CHANCE, NPCS, NPC_BEHAVIOR, RAID_NERVE, TRAITS } from '../data/npcs';
 import { partDef, type PartDef } from '../data/parts';
 import { REGION } from '../data/region';
 import { describe, expect, it, onTestFinished } from 'vitest';
@@ -8,7 +8,7 @@ import { corePart, coreParts, mountedParts } from './grid';
 import { maxHp } from './wear';
 import { addGoods, mountPart } from './inventory';
 import { makePart } from './factory';
-import { canFlee, canRob, decide, firepower, fitToHunt, holdsUp, huntingGrounds, isManageable, isWeak, judgeDanger, lawmanTowns, nearLawGate, raiderGrounds, optionChances, optionWeights } from './npc-decisions';
+import { canFlee, canRob, decide, firepower, fitToHunt, holdsUp, huntingGrounds, isManageable, isWeak, judgeDanger, lawmanTowns, managesAgainst, nearLawGate, npcProfile, raiderGrounds, optionChances, optionWeights } from './npc-decisions';
 import { isTerritory, siteGap, siteGates } from './sites';
 import { hazardZones } from './territory';
 import { divideTurf, huntingSpots, turfClaimants } from './hunting-spots';
@@ -964,5 +964,53 @@ describe('holdsUp', () => {
     const { robber, up } = setup(true);
     robber.brain!.goals.push({ kind: 'follow', leader: 'x' } as never);
     expect(up()).toBe(false);
+  });
+});
+
+describe('nerve for a worthwhile catch', () => {
+  const base = (v: Vehicle) => NPC_BEHAVIOR.threatRatio * npcProfile(v).boldness;
+
+  function huntScene(goods: number): { w: World; raider: Vehicle; prey: Vehicle } {
+    const w = emptyWorld({ x: 80, y: 80 });
+    const raider = addNpc(w, 'scrapjaw', 'buggy', ['raider'], { x: 20, y: 20 });
+    const prey = addVehicle(w, 'independent', 'hauler', ['mg', 'stockEngine'], { x: 30, y: 20 });
+    prey.brain = npcBrain('trader', prey.pos, ['trader']);
+    if (goods > 0 && addGoods(w, prey, 'electronics', goods) < goods) throw new Error('No room for the prey cargo');
+    refreshVision(w);
+    return { w, raider, prey };
+  }
+
+  it('equals the target-free line for a target the raider does not hunt for loot', () => {
+    const w = emptyWorld({ x: 80, y: 80 });
+    const raider = addNpc(w, 'scrapjaw', 'buggy', ['raider'], { x: 20, y: 20 });
+    const mate = addNpc(w, 'scrapjaw', 'buggy', ['raider'], { x: 30, y: 20 });
+    const trader = addNpc(w, 'independent', 'trader', ['trader'], { x: 40, y: 20 });
+    for (const danger of [0.2, base(trader) - 0.01, base(trader) + 0.01, 5]) {
+      expect(managesAgainst(w, raider, mate, danger)).toBe(isManageable(raider, danger));
+      expect(managesAgainst(w, trader, raider, danger)).toBe(isManageable(trader, danger));
+    }
+  });
+
+  it('adds no nerve when the raider has no room to carry off a catch', () => {
+    const { w, raider, prey } = huntScene(6);
+    addGoods(w, raider, 'scrap', 99);
+
+    expect(managesAgainst(w, raider, prey, base(raider) + 0.01)).toBe(false);
+    expect(managesAgainst(w, raider, prey, base(raider))).toBe(true);
+  });
+
+  it('takes on more danger for a rich load, and never more than the prize allows', () => {
+    const { w, raider, prey } = huntScene(6);
+    const ceiling = base(raider) * (1 + RAID_NERVE.prize);
+
+    expect(managesAgainst(w, raider, prey, base(raider) * 1.2)).toBe(true);
+    expect(managesAgainst(w, raider, prey, ceiling + 0.01)).toBe(false);
+  });
+
+  it('still breaks off a catch when it is outgunned beyond its nerve', () => {
+    const { w, raider, prey } = huntScene(6);
+
+    expect(managesAgainst(w, raider, prey, 10)).toBe(false);
+    expect(optionWeights(w, raider, 'hostileSeen', prey.id, 10)).toHaveProperty('flee');
   });
 });

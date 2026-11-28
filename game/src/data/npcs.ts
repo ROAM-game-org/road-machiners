@@ -131,7 +131,7 @@ const MOSTLY_NO_CARGO_PART: Weighted<string | null>[] = [
 const LOADOUTS: Record<string, NpcLoadoutTable> = {
   outrider: {
     armed: true,
-    levels: [{ value: "standard", weight: 4 }, { value: "heavy", weight: 2 }, { value: "loaded", weight: 0.5 }],
+    levels: [{ value: "light", weight: 2 }, { value: "standard", weight: 4 }, { value: "heavy", weight: 2 }, { value: "loaded", weight: 1 }],
     chassis: [
       { value: "buggy", weight: 6 },
       { value: "courier", weight: 3 },
@@ -158,7 +158,7 @@ const LOADOUTS: Record<string, NpcLoadoutTable> = {
   },
   gunwagon: {
     armed: true,
-    levels: [{ value: "standard", weight: 4 }, { value: "heavy", weight: 2 }, { value: "loaded", weight: 0.5 }],
+    levels: [{ value: "standard", weight: 2 }, { value: "heavy", weight: 3 }, { value: "loaded", weight: 1.5 }],
     chassis: [
       { value: "wagon", weight: 6 },
       { value: "carrier", weight: 2 },
@@ -813,7 +813,7 @@ export const STATE_TURNS: Record<StateKindId, number | null> = {
 };
 
 
-export { CREW, FEMALE_NAMES, FIRST_NAMES, HELP_CALL, HIRE, HUNT, LOOK_OVER, MEMORY, NPC_BEHAVIOR, NPC_UPKEEP, ROAD_KIT_PARTS, SURNAMES, TRADE_TIP } from './npc-behavior';
+export { CREW, FEMALE_NAMES, FIRST_NAMES, HELP_CALL, HIRE, HUNT, LOOK_OVER, MEMORY, NPC_BEHAVIOR, NPC_UPKEEP, RAID_NERVE, ROAD_KIT_PARTS, SURNAMES, TRADE_TIP } from './npc-behavior';
 export { TRAITS, type Trait } from './npc-traits';
 
 export const EXPLORE = { range: 120, minHop: 30, gapCap: 20, lookTurns: 19 };

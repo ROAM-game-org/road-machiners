@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { CREW, NPCS } from '../data/npcs';
+import { partDef } from '../data/parts';
 import { REGION } from '../data/region';
 import { followersOf, followingOf, joinCompany } from './companies';
-import { askToJoin, canMuster, crewCandidates, heirOf, musterGoal, onCrewCall, settleCrews, steerMuster } from './crews';
+import { askToJoin, canMuster, crewCandidates, heirOf, musterGoal, musterWeight, onCrewCall, settleCrews, steerMuster } from './crews';
 import { remember } from './memory';
 import { getActivityDestination, goalHolds, placeBase, topGoal } from './npc-activities';
 import { optionWeights } from './npc-decisions';
@@ -109,8 +110,74 @@ describe('mustering a crew', () => {
     expect(canMuster(w, leader)).toBe(false);
     leader.brain!.musteredAt = w.turn - CREW.retryTurns;
     expect(canMuster(w, leader)).toBe(true);
-    leader.pos = { x: KILN.pos.x, y: KILN.pos.y + KILN.radius + CREW.campReach + 2 };
-    expect(canMuster(w, leader)).toBe(false);
+  });
+
+  it('musters from anywhere with nobody in sight, at a reduced idle weight', () => {
+    const w = camp();
+    const leader = raider(w, { x: KILN.pos.x, y: KILN.pos.y + KILN.radius + CREW.campReach + 20 });
+    expect(canMuster(w, leader)).toBe(true);
+
+    const atCamp = raider(w, near(0));
+    raider(w, near(3));
+    expect(musterWeight(leader)).toBe(CREW.homeMuster * musterWeight(atCamp));
+    expect(musterWeight(atCamp)).toBe(1);
+  });
+
+  it('rides home first, asking nobody on the way', () => {
+    const w = camp();
+    const leader = raider(w, { x: KILN.pos.x, y: KILN.pos.y + KILN.radius + CREW.campReach + 20 });
+    const goal = musterGoal(w, leader);
+    placeBase(w, leader, goal);
+    forceOption('crewAsked', 'join');
+
+    steerMuster(w, leader, goal);
+
+    expect(goal).toMatchObject({ kind: 'muster', reason: 'musterCrew', phase: 'travel', targetId: null });
+    expect(goal.until).toBeUndefined();
+    expect(goal.destination).not.toBeNull();
+    expect(eventsOf(w, 'crewAsked')).toHaveLength(0);
+  });
+
+  it('starts gathering once it has ridden home, with a full wait ahead', () => {
+    const w = camp();
+    const leader = raider(w, { x: KILN.pos.x, y: KILN.pos.y + KILN.radius + CREW.campReach + 20 });
+    const goal = musterGoal(w, leader);
+    placeBase(w, leader, goal);
+
+    leader.pos = { ...goal.destination! };
+    steerMuster(w, leader, goal);
+
+    expect(goal.until).toBe(w.turn + CREW.musterTurns);
+  });
+
+  it('asks a raider of its camp that it finds there on arrival, and that one joins', () => {
+    const w = camp();
+    const leader = raider(w, { x: KILN.pos.x, y: KILN.pos.y + KILN.radius + CREW.campReach + 20 });
+    const goal = musterGoal(w, leader);
+    placeBase(w, leader, goal);
+    const mate = raider(w, near(3));
+    forceOption('crewAsked', 'join');
+    leader.pos = near(0);
+    goal.destination = { ...leader.pos };
+
+    steerMuster(w, leader, goal);
+    steerMuster(w, leader, goal);
+
+    expect(followingOf(w, mate)).toMatchObject({ kind: 'crew', other: leader.id });
+  });
+
+  it('drops the muster on arrival when the raider is no longer fit to hunt', () => {
+    const w = camp();
+    const leader = raider(w, { x: KILN.pos.x, y: KILN.pos.y + KILN.radius + CREW.campReach + 20 });
+    const goal = musterGoal(w, leader);
+    placeBase(w, leader, goal);
+    leader.pos = { ...goal.destination! };
+    leader.items = leader.items.filter((item) => item.kind !== 'part' || partDef(item.part.defId).kind !== 'weapon');
+
+    steerMuster(w, leader, goal);
+
+    expect(leader.brain!.goals).not.toContain(goal);
+    expect(leader.brain!.musteredAt).toBe(w.turn);
   });
 
   it('stops at the crew size, rides out on a raid and logs the crew', () => {

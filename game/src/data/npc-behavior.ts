@@ -131,11 +131,16 @@ export const CREW = {
   musterTurns: 40,
   huntTurns: 300,
   retryTurns: 150,
+  homeMuster: 0.25,
   campReach: 12,
   askReach: 10,
   initiative: 0.1,
   strongerLeader: 2,
   lowAppetite: 0.5,
+};
+
+export const RAID_NERVE = {
+  prize: 0.5,
 };
 
 export const HIRE = {
