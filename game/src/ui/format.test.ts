@@ -10,7 +10,7 @@ import { mountPart } from "../sim/inventory";
 import { maxHp } from "../sim/wear";
 import { workOf, addState } from "../sim/states";
 import { startAid } from "../sim/aid";
-import { wantedBounty, gridColumnLetter, gridRowNumber, gridSquareText, isNotable, surveyClueLines, surveyPlacesLeft, surveyProgress } from "./format";
+import { escortStatusText, wantedBounty, gridColumnLetter, gridRowNumber, gridSquareText, isNotable, surveyClueLines, surveyPlacesLeft, surveyProgress } from "./format";
 import { gridSquareOf } from "../sim/map-grid";
 import { surveyClue, surveySites } from "../sim/survey";
 import { TEST_MAP } from "../test/map";
@@ -22,12 +22,15 @@ import { claimClue, claimWrecks } from "../sim/claims";
 import { START_KITS } from "../data/start";
 import { defaultSetup } from "../sim/settings";
 import { newWorld } from "../sim/world";
-import { haulerOf, isPlayerTruckId } from "../sim/damage";
+import { haulerOf, isPlayerTruckId, playerVehicle } from "../sim/damage";
 import { parkedAtOutpost } from "../sim/testkit";
 import { mountedParts } from "../sim/grid";
 import { fuelLiters } from "./units";
 import { resetSeeAll, toggleSeeAll } from "./see-all";
 import { wreckVehicle } from "../sim/combat";
+import { turnsLeft } from "../sim/escort-job";
+import { ESCORT_JOB } from "../data/market";
+
 import { partName, siteName, vehicleTitle } from "../text/names";
 import { t, type Msg } from "../text/msg";
 import { resolve } from "../text/resolve";
@@ -1245,4 +1248,34 @@ describe("time span text", () => {
   it("refuses a span that runs backwards", () => {
     expect(() => timeSpanText(10, 9)).toThrow();
   });
+});
+
+describe("escort status clock", () => {
+  function escortWorld(farAway: boolean) {
+    const w = emptyWorld();
+    const player = playerVehicle(w);
+    const trader = addVehicle(w, "independent", "scout", ["mg", "stockEngine"], { x: player.pos.x + (farAway ? ESCORT_JOB.apartGap + 5 : 3), y: player.pos.y });
+    const c = { shop: "bowl", reward: 1, deadline: 100, window: 100, tier: 1, id: "e", kind: "escort", client: trader.id, to: "nose", threat: 1, span: 1, together: 0, seen: null, apart: 0, stuck: 0, holdUntil: null } as Contract & { kind: "escort" };
+    w.player.contracts.push(c);
+    return { w, c };
+  }
+
+  const cases = [
+    { status: "Apart", build: () => { const e = escortWorld(true); e.c.apart = 1; return e; } },
+    { status: "Holding", build: () => { const e = escortWorld(false); e.c.holdUntil = e.w.turn + 90; return e; } },
+    { status: "Stuck", build: () => { const e = escortWorld(false); e.c.stuck = 1; e.w.player.fuel = 0; return e; } },
+  ];
+
+  for (const { status, build } of cases) {
+    it(`reads the ${status} countdown in game time in both languages`, () => {
+      const { w, c } = build();
+      const left = Math.max(0, turnsLeft(w, c as never) ?? 0);
+      const text = escortStatusText(w, c)!;
+      const span = timeSpanText(w.turn, w.turn + left);
+      expect(en(text)).toBe(`${status}, ${en(span)} left`);
+      expect(en(text)).not.toMatch(/turn/i);
+      expect(resolve(text, "ru")).not.toMatch(/ход/);
+      expect(resolve(text, "ru")).toContain(resolve(span, "ru"));
+    });
+  }
 });

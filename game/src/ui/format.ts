@@ -851,7 +851,8 @@ export function escortStatusText(world: World, c: Contract): Msg | null {
   const status = escortStatus(world, c);
   if (status === 'together') return null;
   if (status === 'waiting') return t('contract.status.waiting');
-  return t(`contract.status.${status}`, { n: Math.max(0, turnsLeft(world, c) ?? 0) });
+  const left = Math.max(0, turnsLeft(world, c) ?? 0);
+  return t(`contract.status.${status}`, { span: timeSpanText(world.turn, world.turn + left) });
 }
 
 const ESCORT_ENDED_CLS = { arrived: 'good', strayed: 'bad', hostile: 'bad', knockedOut: 'bad', stuck: 'dim', apartAtArrival: 'dim', lost: 'dim', cargoLost: 'dim' } as const;
