@@ -155,7 +155,7 @@ describe('repairMap positions', () => {
 
   it('scales the positions in contracts, shop offers, states and the Sunward hunt', () => {
     const w = oldScaleBase();
-    const escort = { id: 'ct-escort', shop: 'bowl', kind: 'escort', client: 'v1', to: 'nose', reward: 1, deadline: 9, window: 9, tier: 1, threat: 'raiders', span: 3, together: 0, seen: { x: 11, y: 12, turn: 5 }, apart: 0, stuck: 0, holdUntil: null } as unknown as Contract;
+    const escort = { id: 'ct-escort', shop: 'bowl', kind: 'escort', client: 'v1', to: 'nose', reward: 1, deadline: 9, window: 9, tier: 1, threat: 'raiders', span: 3, together: 0, seen: { x: 11, y: 12, turn: 5 }, apart: 0, stuck: 0, holdUntil: null, ended: null } as unknown as Contract;
     const rescue = { id: 'ct-rescue', shop: 'bowl', kind: 'rescue', client: 'v1', driver: 'Jed', need: 'fuel', area: { x: 13, y: 14 }, reward: 1, deadline: 9, window: 9, tier: 1, fulfilled: false } as unknown as Contract;
     const search = { id: 'ct-search', shop: 'bowl', kind: 'search', target: 'v1', driver: 'Jed', template: 'buggy', lead: { at: { x: 15, y: 16 }, turn: 2 }, reward: 1, deadline: 9, window: 9, tier: 1, delivered: false } as unknown as Contract;
     w.player.contracts = [escort, rescue];

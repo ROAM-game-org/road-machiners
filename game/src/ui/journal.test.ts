@@ -27,7 +27,7 @@ const stock = (id: string, pos: { x: number; y: number }): SalvageStock => ({ id
 const haul: Contract = { id: 'ct-h', shop: 'bowl', kind: 'haul', good: 'scrap', units: 3, to: 'nose', reward: 200, deadline: 5000, window: 600, rush: false, tier: 2 };
 const claim = (leads: Extract<Contract, { kind: 'claim' }>['leads'] = []): Extract<Contract, { kind: 'claim' }> => ({ id: 'ct-1', shop: 'bowl', kind: 'claim', stockId: 'armyTruck-1', at: { x: 100, y: 50 }, partId: 'p1', defId: 'mg', reward: 9, deadline: 9000, window: 9000, tier: 1, rivalAt: 9000, rival: null, leads });
 const order: Extract<Contract, { kind: 'procure' }> = { id: 'ct-b', shop: 'nose', kind: 'procure', good: 'water', units: 6, cratePay: 9, reward: 111, deadline: 900, window: 900, tier: 1 };
-const escort: Contract = { id: 'ct-e', shop: 'bowl', kind: 'escort', client: 'v-gone', to: 'nose', reward: 80, deadline: 2000, window: 2000, tier: 1, threat: 2, span: 100, together: 40, seen: null, apart: 0, stuck: 0, holdUntil: null };
+const escort: Contract = { id: 'ct-e', shop: 'bowl', kind: 'escort', client: 'v-gone', to: 'nose', reward: 80, deadline: 2000, window: 2000, tier: 1, threat: 2, span: 100, together: 40, seen: null, apart: 0, stuck: 0, holdUntil: null, ended: null };
 
 function everyKind(): Contract[] {
   const [site] = surveySites(TEST_MAP);

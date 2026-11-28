@@ -25,6 +25,7 @@ import {
   postedTurn,
   haulBlocked,
   deliverContract,
+  handInSite,
   goodValue,
   contractReward,
   estimateTurns,
@@ -787,4 +788,13 @@ describe('search contracts', () => {
     expect(older.player.contracts[0]).toMatchObject({ lead: { at: { x: 10, y: 20 }, turn: 50 } });
   });
 
+});
+
+describe('handInSite', () => {
+  it('names the destination for a haul or an escort and the posting shop for the rest', () => {
+    const base = { shop: 'bowl', reward: 1, deadline: 1, window: 1, tier: 1 as const };
+    expect(handInSite({ ...base, id: 'h', kind: 'haul', good: 'fuelDrums', units: 1, to: 'nose', rush: false })).toBe('nose');
+    expect(handInSite({ ...base, id: 'e', kind: 'escort', client: 'c', to: 'nose', threat: 1, span: 1, together: 0, seen: null, apart: 0, stuck: 0, holdUntil: null, ended: 'done' })).toBe('nose');
+    expect(handInSite({ ...base, id: 's', kind: 'survey', points: [] })).toBe('bowl');
+  });
 });
