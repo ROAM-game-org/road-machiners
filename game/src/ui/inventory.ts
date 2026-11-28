@@ -576,15 +576,10 @@ export class InventoryView {
 
   private storageEl(w: World): HTMLElement {
     const chips = w.player.storage.map((p) => {
-      const d = partDef(p.defId);
       const chip = el(
         "div",
         { class: "inv-chip", "data-hold": "", style: toneStyle(p.defId) },
-        partIconEl(p),
-        el("span", {}, partName(d.id)),
-        conditionTag(p),
-        footprintEl(d.w, d.h),
-        conditionMeter(p),
+        ...partChipBody(p, null),
       );
       const item = storageItem(p);
       this.markSelected(chip, item);
@@ -654,16 +649,10 @@ export class InventoryView {
     const parts = visibleParts(w, playerVehicle(w), stock);
     const taken = takenMarks(w, parts);
     for (const p of parts) {
-      const d = partDef(p.defId);
       const chip = el(
         "div",
         { class: "inv-chip", "data-hold": "", style: toneStyle(p.defId) },
-        partIconEl(p),
-        el("span", {}, partName(d.id)),
-        claim && p.id === claimed ? claimMark(claim.shop) : null,
-        conditionTag(p),
-        footprintEl(d.w, d.h),
-        conditionMeter(p),
+        ...partChipBody(p, claim && p.id === claimed ? claimMark(claim.shop) : null),
       );
       const item = lootPartItem(p);
       markTaken(w, chip, taken.get(p.id));
@@ -1239,6 +1228,17 @@ export class InventoryScreen {
 
 function fromButton(e: Event): boolean {
   return (e.target as Element).closest("button") !== null;
+}
+
+export function partChipBody(part: PartInstance, mark: HTMLElement | null): (HTMLElement | null)[] {
+  const d = partDef(part.defId);
+  return [
+    partIconEl(part),
+    el("span", { class: "chip-title" }, el("span", {}, partName(d.id)), conditionMeter(part)),
+    mark,
+    conditionTag(part),
+    footprintEl(d.w, d.h),
+  ];
 }
 
 function claimMark(shop: string): HTMLElement {

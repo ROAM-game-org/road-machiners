@@ -640,6 +640,13 @@
 .inv-chip > span {
   flex: 1;
 }
+.inv-chip > .chip-title {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+  min-width: 0;
+}
 .inv-chip > .cond {
   flex: none;
   font-size: var(--text-dense);

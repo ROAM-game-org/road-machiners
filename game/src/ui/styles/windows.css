@@ -197,13 +197,9 @@
   top: var(--space-1);
   bottom: auto;
 }
-.inv-chip > .segments {
+.inv-chip > .segments.progress {
   position: absolute;
   right: var(--space-4);
-  bottom: var(--space-2);
-}
-.inv-chip:has(> .segments) {
-  padding-bottom: calc(var(--space-2) + var(--gauge-h) + var(--space-1));
 }
 :is(#ui, #report) :is(.well, .screen-block, .board-offers, .hud-screen) .tag {
   align-self: start;
