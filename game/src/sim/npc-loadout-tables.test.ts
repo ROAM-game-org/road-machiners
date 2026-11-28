@@ -84,7 +84,7 @@ describe('raider gear spread', () => {
     for (const tpl of raiderTemplates) expect(new Set(levelsOf(tpl)).size, tpl.id).toBeGreaterThanOrEqual(3);
   });
 
-  it('lets an outrider roll poor and light, so weak raiders ride beside strong ones', () => {
-    expect(levelsOf(NPCS.buggy)).toEqual(expect.arrayContaining(['poor', 'light', 'loaded']));
+  it('lets an outrider roll light and loaded, so weak raiders ride beside strong ones', () => {
+    expect(levelsOf(NPCS.buggy)).toEqual(expect.arrayContaining(['light', 'loaded']));
   });
 });

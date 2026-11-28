@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CREW, NPCS } from '../data/npcs';
+import { partDef } from '../data/parts';
 import { REGION } from '../data/region';
 import { followersOf, followingOf, joinCompany } from './companies';
 import { askToJoin, canMuster, crewCandidates, heirOf, musterGoal, musterWeight, onCrewCall, settleCrews, steerMuster } from './crews';
@@ -171,7 +172,7 @@ describe('mustering a crew', () => {
     const goal = musterGoal(w, leader);
     placeBase(w, leader, goal);
     leader.pos = { ...goal.destination! };
-    leader.items = leader.items.filter((item) => item.defId === 'stockEngine');
+    leader.items = leader.items.filter((item) => item.kind !== 'part' || partDef(item.part.defId).kind !== 'weapon');
 
     steerMuster(w, leader, goal);
 

@@ -131,7 +131,7 @@ const MOSTLY_NO_CARGO_PART: Weighted<string | null>[] = [
 const LOADOUTS: Record<string, NpcLoadoutTable> = {
   outrider: {
     armed: true,
-    levels: [{ value: "poor", weight: 1 }, { value: "light", weight: 2 }, { value: "standard", weight: 4 }, { value: "heavy", weight: 2 }, { value: "loaded", weight: 1 }],
+    levels: [{ value: "light", weight: 2 }, { value: "standard", weight: 4 }, { value: "heavy", weight: 2 }, { value: "loaded", weight: 1 }],
     chassis: [
       { value: "buggy", weight: 6 },
       { value: "courier", weight: 3 },
