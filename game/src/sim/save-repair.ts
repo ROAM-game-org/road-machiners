@@ -19,7 +19,7 @@ import { settleAims } from './combat';
 import { everyTruck } from './sites';
 import { newId, chargeFor, gunFor, makePart } from './factory';
 import { installSpot, stowSpot } from './inventory';
-import { baseGrid, findSpot, gridOf, mountedItems, onDeadCell, placementError, type Grid } from './grid';
+import { baseGrid, findSpot, gridOf, holdCellsOf, mountedItems, onDeadCell, placementError, type Grid } from './grid';
 import { settleEscortJob } from './escort-job';
 import { addShop, contractTruck, finishContract, isMet, parcelOf, removeParcel, type Contract, type ShopState } from './market';
 import { reviseMemories } from './memory';
@@ -385,8 +385,8 @@ function seatedCore(world: World, spec: CoreSpec, old: PartItem | null): GridIte
   return { id, kind: 'part', part, x: spec.x, y: spec.y, rot: spec.rot ?? 0 };
 }
 
-function fitRank(item: GridItem): number {
-  if (item.kind === 'part') return partDef(item.part.defId).kind === 'cargo' ? 0 : 2;
+function fitRank(v: Vehicle, item: GridItem): number {
+  if (item.kind === 'part') return partDef(item.part.defId).kind === 'cargo' || holdCellsOf(v.chassisId, item.part.defId) > 0 ? 0 : 2;
   return item.kind === 'parcel' ? 1 : 3;
 }
 
@@ -402,7 +402,7 @@ function misfits(v: Vehicle): GridItem[] {
   const mountedCores: readonly GridItem[] = mountedItems(v, 'core');
   const kept: GridItem[] = v.items.filter((it) => mountedCores.includes(it));
   const dropped: GridItem[] = [];
-  const rest = v.items.filter((it) => !kept.includes(it)).sort((a, b) => fitRank(a) - fitRank(b));
+  const rest = v.items.filter((it) => !kept.includes(it)).sort((a, b) => fitRank(v, a) - fitRank(v, b));
   for (const item of rest) {
     const grid = gridOf({ ...v, items: kept });
     if (fitsGrid(grid, kept, item)) kept.push(item);
