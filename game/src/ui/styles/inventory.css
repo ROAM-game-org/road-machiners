@@ -114,7 +114,7 @@
   scrollbar-width: none;
 }
 .inv-wrap:has(> .inv-store) {
-  grid-template-rows: minmax(0, 3fr) minmax(calc(3 * var(--icon-hero)), 2fr);
+  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
   row-gap: var(--space-9);
 }
 .inv-wrap:has(> .inv-store) > .inv-truck {
@@ -1015,7 +1015,7 @@
   row-gap: var(--space-4);
 }
 .town-split.banded[data-store="beside"] {
-  --town-truck-w: min(calc(2 * var(--inv-side-width) + 3 * var(--space-9) + 300px), calc(100% - var(--panel-l) - var(--space-9)));
+  --town-truck-w: min(calc(2 * var(--inv-side-width) + 3 * var(--space-9) + 300px), calc(100% - var(--panel-xl) - var(--space-9)));
 }
 .town-split.banded[data-store="beside"] .inv-wrap:has(> .inv-store) {
   grid-template-columns: minmax(0, 1fr) var(--inv-side-width) var(--inv-side-width);

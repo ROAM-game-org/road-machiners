@@ -287,7 +287,7 @@ export function hostedRooms(box: HTMLElement, root: HTMLElement, height: number)
   split.dataset.store = "stacked";
   const stacked = bandedWidth(root);
   const shop = split.querySelector(".town-shop");
-  const shopFloor = pxOf(shop ? getComputedStyle(shop).getPropertyValue("--panel-l") : undefined);
+  const shopFloor = pxOf(shop ? getComputedStyle(shop).getPropertyValue("--panel-xl") : undefined);
   const slack = widthOf(split) - pxOf(getComputedStyle(split).columnGap) - shopFloor - widthOf(column);
   const wrap = root.querySelector(".inv-wrap");
   const sideColumn = widthOf(root.querySelector(".inv-side")) + (wrap ? pxOf(getComputedStyle(wrap).columnGap) : 0);
