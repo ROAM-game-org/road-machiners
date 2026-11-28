@@ -136,7 +136,7 @@ export const LOG: Translation<typeof EN> = {
   'log.damageLead': ': ',
   'log.damageSep': ', ',
   'log.jobStarted': '{what}: работа пошла. Не трогайтесь с места примерно {n, plural, one {# ход} few {# хода} many {# ходов} other {# хода}}.',
-  'log.jobCancelled': '{what}: работа сорвана. Грузовик сдвинулся, появился враг или изменился нужный предмет',
+  'log.jobCancelled': '{what}: работа сорвана',
   'log.jobSkipped': '{what}: пропущено. {reason}',
   'log.jobDone': '{what}: готово',
   'log.weather.storm.started': 'Поднялась пыльная буря',
