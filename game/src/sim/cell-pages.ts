@@ -25,14 +25,14 @@ export class CellPages<A extends PageArray> {
 
   at(i: number): number {
     this.checkIndex(i);
-    const x = i % this.side;
-    return this.read(x, (i - x) / this.side);
+    const y = (i / this.side) | 0;
+    return this.read(i - y * this.side, y);
   }
 
   set(i: number, v: number): void {
     this.checkIndex(i);
-    const x = i % this.side;
-    this.write(x, (i - x) / this.side, v);
+    const y = (i / this.side) | 0;
+    this.write(i - y * this.side, y, v);
   }
 
   atXY(x: number, y: number): number {
@@ -43,6 +43,16 @@ export class CellPages<A extends PageArray> {
   setXY(x: number, y: number, v: number): void {
     this.checkXY(x, y);
     this.write(x, y, v);
+  }
+
+  pageOf(x: number, y: number): A {
+    this.checkXY(x, y);
+    const p = this.pageAt(x, y);
+    return this.pages[p] ?? this.open(p, x, y);
+  }
+
+  offsetOf(x: number, y: number): number {
+    return ((y & this.mask) << this.shift) | (x & this.mask);
   }
 
   fillRow(y: number, x0: number, x1: number, v: number): void {
@@ -79,8 +89,9 @@ export class CellPages<A extends PageArray> {
 
   private read(x: number, y: number): number {
     const p = this.pageAt(x, y);
-    const page = this.pages[p] ?? (this.filler === null ? undefined : this.open(p, x, y));
-    return page === undefined ? this.blank : page[((y & this.mask) << this.shift) | (x & this.mask)];
+    const page = this.pages[p];
+    if (page !== undefined) return page[((y & this.mask) << this.shift) | (x & this.mask)];
+    return this.filler === null ? this.blank : this.open(p, x, y)[((y & this.mask) << this.shift) | (x & this.mask)];
   }
 
   private write(x: number, y: number, v: number): void {
@@ -102,11 +113,11 @@ export class CellPages<A extends PageArray> {
   }
 
   private onSide(v: number): boolean {
-    return Number.isInteger(v) && v >= 0 && v < this.side;
+    return v >>> 0 === v && v < this.side;
   }
 
   private checkIndex(i: number): void {
-    if (!(Number.isInteger(i) && i >= 0 && i < this.side * this.side)) throw new Error(`CellPages: index ${i} is outside the ${this.side} by ${this.side} grid`);
+    if (!(i >>> 0 === i && i < this.side * this.side)) throw new Error(`CellPages: index ${i} is outside the ${this.side} by ${this.side} grid`);
   }
 
   private checkXY(x: number, y: number): void {

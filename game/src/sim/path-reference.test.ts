@@ -516,7 +516,7 @@ describe('long routes search a coarse corridor', () => {
       for (let x = 0; x < n; x++) {
         const c = y * n + x;
         const r = region(c);
-        if ((r === 0) !== (layer.blocked[c] === 1)) wrong++;
+        if ((r === 0) !== (layer.blocked.at(c) === 1)) wrong++;
         if (r === 0) continue;
         if (block[r] !== blockOfCell(x, y)) wrong++;
         slowSum[r] += slowAt(layer, c);
@@ -601,7 +601,7 @@ describe('long routes search a coarse corridor', () => {
     expect(perfSnapshot()['route-corridor-miss']?.calls).toBe(2);
     expect(got).not.toBeNull();
     expect(got![got!.length - 1]).toBe(goal);
-    for (const c of got!) expect(layer.blocked[c] === 0 && overlay.stamp[c] !== overlay.gen).toBe(true);
+    for (const c of got!) expect(layer.blocked.at(c) === 0 && overlay.stamp.at(c) !== overlay.gen).toBe(true);
     expect(Math.min(...Array.from(got!, (c) => Math.floor(c / n)))).toBeLessThan(32);
   });
 

@@ -1,4 +1,5 @@
 import { count } from '../../perf';
+import { CellPages } from '../cell-pages';
 
 export type Window = { x0: number; y0: number; x1: number; y1: number };
 
@@ -15,7 +16,7 @@ export type CellGrid = {
   m: number;
   bn: number;
   built: Uint8Array;
-  local: Uint8Array;
+  local: CellPages<Uint8Array>;
   first: Int32Array;
   regions: Regions;
   cellRegions: number[][];
@@ -23,7 +24,7 @@ export type CellGrid = {
   portals: Portals;
 };
 
-export type CellSource = { grid: CellGrid; blocked: Uint8Array; slowOf: (c: number) => number; fill: (cell: number) => void };
+export type CellSource = { grid: CellGrid; blocked: CellPages<Uint8Array>; slowOf: (x: number, y: number) => number; fill: (cell: number) => void };
 
 const KEY_STRIDE = 4096;
 const PAIR_STRIDE = 2 ** 24;
@@ -39,7 +40,7 @@ export function newGrid(n: number, side: number, coarse: number): CellGrid {
     m,
     bn,
     built: new Uint8Array(m * m),
-    local: new Uint8Array(n * n),
+    local: new CellPages<Uint8Array>(n, side, (length) => new Uint8Array(length), 0),
     first: new Int32Array(bn * bn),
     regions: { block: [-1], x: [0], y: [0], size: [0], slow: [0], piece: [0], key: [-1], links: [[]] },
     cellRegions: Array.from({ length: m * m }, () => []),
@@ -74,10 +75,11 @@ export function cellOfBlock(g: CellGrid, block: number): number {
 }
 
 export function regionAt(g: CellGrid, c: number): number {
-  const l = g.local[c];
+  const y = (c / g.n) | 0;
+  const x = c - y * g.n;
+  const l = g.local.atXY(x, y);
   if (l === 0) return 0;
-  const x = c % g.n;
-  return g.first[Math.floor((c - x) / g.n / g.coarse) * g.bn + Math.floor(x / g.coarse)] + l - 1;
+  return g.first[((y / g.coarse) | 0) * g.bn + ((x / g.coarse) | 0)] + l - 1;
 }
 
 export function ensureFine(src: CellSource, c: number): void {
@@ -109,24 +111,36 @@ function buildRegions(src: CellSource, cell: number): { count: number; pieceOf: 
   return localPieces(g, cell);
 }
 
-type BlockArea = { block: number; x0: number; y0: number; w: number; h: number };
+type BlockArea = { block: number; x0: number; y0: number; w: number; h: number; blocked: Uint8Array; local: Uint8Array; base: number; stride: number };
 
 function blockRegions(src: CellSource, cell: number, block: number, queue: Int32Array): void {
   const g = src.grid;
   const x0 = (block % g.bn) * g.coarse;
   const y0 = Math.floor(block / g.bn) * g.coarse;
-  const area = { block, x0, y0, w: Math.min(g.n, x0 + g.coarse) - x0, h: Math.min(g.n, y0 + g.coarse) - y0 };
+  const area = blockArea(src, block, x0, y0);
   g.first[block] = g.regions.block.length;
   let next = 1;
   for (let sy = 0; sy < area.h; sy++)
     for (let sx = 0; sx < area.w; sx++) {
-      const seed = (y0 + sy) * g.n + x0 + sx;
-      if (isOpen(src, seed)) addRegion(src, cell, area, floodBlock(src, area, sy * g.coarse + sx, next++, queue));
+      const at = area.base + sy * area.stride + sx;
+      if (area.blocked[at] === 0 && area.local[at] === 0) addRegion(src, cell, area, floodBlock(src, area, sy * g.coarse + sx, next++, queue));
     }
 }
 
-function isOpen(src: CellSource, c: number): boolean {
-  return src.blocked[c] === 0 && src.grid.local[c] === 0;
+function blockArea(src: CellSource, block: number, x0: number, y0: number): BlockArea {
+  const { n, coarse, local } = src.grid;
+  if (src.blocked.pageSide !== local.pageSide) throw new Error(`Route cell pages differ: blocked ${src.blocked.pageSide}, regions ${local.pageSide}`);
+  return {
+    block,
+    x0,
+    y0,
+    w: Math.min(n, x0 + coarse) - x0,
+    h: Math.min(n, y0 + coarse) - y0,
+    blocked: src.blocked.pageOf(x0, y0),
+    local: local.pageOf(x0, y0),
+    base: local.offsetOf(x0, y0),
+    stride: local.pageSide,
+  };
 }
 
 type Flood = { x: number; y: number; slow: number; size: number };
@@ -137,7 +151,7 @@ function floodBlock(src: CellSource, area: BlockArea, start: number, l: number, 
   let x = 0;
   let y = 0;
   let slow = 0;
-  g.local[(area.y0 + Math.floor(start / C)) * g.n + area.x0 + (start % C)] = l;
+  area.local[area.base + Math.floor(start / C) * area.stride + (start % C)] = l;
   queue[0] = start;
   let tail = 1;
   for (let i = 0; i < tail; i++) {
@@ -145,22 +159,22 @@ function floodBlock(src: CellSource, area: BlockArea, start: number, l: number, 
     const lx = queue[i] - ly * C;
     x += area.x0 + lx;
     y += area.y0 + ly;
-    slow += src.slowOf((area.y0 + ly) * g.n + area.x0 + lx);
+    slow += src.slowOf(area.x0 + lx, area.y0 + ly);
     tail = spread(src, area, lx, ly, l, queue, tail);
   }
   return { x, y, slow, size: tail };
 }
 
 function spread(src: CellSource, area: BlockArea, lx: number, ly: number, l: number, queue: Int32Array, tail: number): number {
-  const { n, local, coarse } = src.grid;
-  const { blocked } = src;
+  const { coarse } = src.grid;
+  const { blocked, local, base, stride } = area;
   const yHigh = Math.min(area.h - 1, ly + 1);
   const xHigh = Math.min(area.w - 1, lx + 1);
   for (let ny = Math.max(0, ly - 1); ny <= yHigh; ny++)
     for (let nx = Math.max(0, lx - 1); nx <= xHigh; nx++) {
-      const c = (area.y0 + ny) * n + area.x0 + nx;
-      if (blocked[c] !== 0 || local[c] !== 0) continue;
-      local[c] = l;
+      const at = base + ny * stride + nx;
+      if (blocked[at] !== 0 || local[at] !== 0) continue;
+      local[at] = l;
       queue[tail++] = ny * coarse + nx;
     }
   return tail;
@@ -282,7 +296,7 @@ export function dropCell(g: CellGrid, cell: number): void {
   }
   g.cellRegions[cell] = [];
   const w = cellWindow(g, cell);
-  for (let y = w.y0; y <= w.y1; y++) g.local.fill(0, y * g.n + w.x0, y * g.n + w.x1 + 1);
+  for (let y = w.y0; y <= w.y1; y++) g.local.fillRow(y, w.x0, w.x1, 0);
   g.built[cell] = 0;
 }
 

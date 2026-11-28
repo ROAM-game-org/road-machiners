@@ -7,7 +7,7 @@ import { CHASSIS } from '../data/chassis';
 import { warmRoutes } from '../sim/path';
 import { PERF } from '../data/perf';
 import { REGION } from '../data/region';
-import { buildCellsAround, prepareRouteTerrain } from '../sim/nav/layer';
+import { buildCellsAround, prepareRouteTerrain, WARM_RING } from '../sim/nav/layer';
 import { endTurn } from '../sim/world';
 import { campWarmSteps } from '../sim/camp-warm';
 import { inQuestLanguage } from '../sim/quests';
@@ -287,8 +287,6 @@ export function warmRadii(world: Pick<TurnState, 'vehicles' | 'player'>): number
   const near = world.vehicles.filter((v) => v !== player && dist(v.pos, player.pos) <= REGION.navigation.farWindow).map((v) => CHASSIS[v.chassisId].radius);
   return [...new Set([own, ...near])];
 }
-
-export const WARM_RING = Math.ceil(REGION.navigation.farWindow / REGION.navigation.cellTiles);
 
 function buildWhileIdle(terrain: World['terrain'], world: TurnState): void {
   const run = ++idleRun;
