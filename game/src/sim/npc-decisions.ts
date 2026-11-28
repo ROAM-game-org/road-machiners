@@ -50,7 +50,7 @@ import { driveStats, isStranded, vehicleStats } from './stats';
 import { canHire, canTakeEscort, declineFactor, escortsOf, inTowReach, isOnRope, strandedAt, towSite } from './tow';
 import { leaderToJoin } from './pairs';
 import { ownSide, perceivedGroup } from './sides';
-import { canJoin, canMuster, heldBackByCrew, joinFactor } from './crews';
+import { canJoin, canMuster, heldBackByCrew, joinFactor, musterWeight } from './crews';
 import { companyOf, followersOf, followingOf } from './companies';
 import type { Contact, GoalReason, NpcActivity, PassReason, Vehicle, World } from './types';
 import { clamp, dist, type Vec } from './vec';
@@ -1014,7 +1014,7 @@ const SITUATION: Record<OptionName, SituationFactor> = {
   explore: neutral,
   haul: neutral,
   escort: neutral,
-  muster: neutral,
+  muster: (_world, vehicle) => musterWeight(vehicle),
   join: (world, vehicle, decision, subject) => joinFactor(world, vehicle, subjectOf(world, decision, subject)),
   go: neutral,
   post: postFactor,

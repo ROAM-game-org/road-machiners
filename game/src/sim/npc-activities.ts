@@ -1089,7 +1089,7 @@ export function withinReach(vehicle: Vehicle, activity: NpcActivity): boolean {
   return activity.destination !== null && dist(vehicle.pos, activity.destination) <= GOAL_REACH;
 }
 
-function reachedDestination(world: World, vehicle: Vehicle, activity: NpcActivity): boolean {
+export function reachedDestination(world: World, vehicle: Vehicle, activity: NpcActivity): boolean {
   return withinReach(vehicle, activity) || world.events.some((e) => e.t === 'arrived' && e.vehicle === vehicle.id);
 }
 

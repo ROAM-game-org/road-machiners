@@ -8,8 +8,8 @@ import {
   decide, firepower, fitToHunt, getCombatCondition, hasSaleCargo, hasTrait, homeCamp, isWeak, npcProfile, offersChoice, perceiveDanger, raiderGrounds, strengthRatio,
 } from './npc-decisions';
 import { fightOdds } from './fight-odds';
-import { dropGoal, fightCornered, fleeFrom, IDLE_GOALS, inDanger, interrupt, placeBase, replaceBase, topGoal } from './npc-activities';
-import { liesUp } from './npc-service';
+import { dropGoal, fightCornered, reachedDestination, fleeFrom, IDLE_GOALS, inDanger, interrupt, placeBase, replaceBase, topGoal } from './npc-activities';
+import { liesUp, lieUpSpot } from './npc-service';
 import { modeRules } from './settings';
 import { siteGap } from './sites';
 import type { CrewAskCause, CrewLeftCause, NpcActivity, NpcState, StateData, StateEnding, Vehicle, World } from './types';
@@ -47,8 +47,12 @@ function free(w: World, v: Vehicle): boolean {
 }
 
 export function canMuster(w: World, v: Vehicle): boolean {
-  if (!modeRules(w).traffic || !isRaider(v) || !free(w, v) || !atCamp(v) || !musterRested(w, v)) return false;
-  return crewCandidates(w, v, []).length > 0;
+  if (!modeRules(w).traffic || !isRaider(v) || !free(w, v) || !musterRested(w, v)) return false;
+  return !atCamp(v) || crewCandidates(w, v, []).length > 0;
+}
+
+export function musterWeight(v: Vehicle): number {
+  return atCamp(v) ? 1 : CREW.homeMuster;
 }
 
 function isCandidate(w: World, leader: Vehicle, v: Vehicle): boolean {
@@ -62,6 +66,7 @@ export function crewCandidates(w: World, leader: Vehicle, asked: readonly string
 }
 
 export function musterGoal(w: World, v: Vehicle): NpcActivity {
+  if (!atCamp(v)) return { kind: 'muster', targetId: null, destination: lieUpSpot(w, v, homeCamp(v)), phase: 'travel', reason: 'musterCrew', asked: [] };
   const first = crewCandidates(w, v, [])[0];
   if (!first) throw new Error(`${v.id} chose to muster with no raider in sight to ask`);
   return { kind: 'muster', targetId: first.id, destination: { ...first.pos }, phase: 'travel', reason: 'musterCrew', until: w.turn + CREW.musterTurns, asked: [] };
@@ -77,7 +82,20 @@ function musterOver(w: World, leader: Vehicle, goal: NpcActivity): boolean {
   return w.turn >= goal.until || crewOf(w, leader).length >= CREW.size - 1;
 }
 
+function abandonMuster(w: World, leader: Vehicle, goal: NpcActivity): void {
+  leader.brain!.musteredAt = w.turn;
+  dropGoal(w, leader, goal, 'nothingToDo');
+}
+
+function rideHome(w: World, leader: Vehicle, goal: NpcActivity): void {
+  if (!free(w, leader)) return abandonMuster(w, leader, goal);
+  if (!reachedDestination(w, leader, goal)) return;
+  goal.until = w.turn + CREW.musterTurns;
+  steerMuster(w, leader, goal);
+}
+
 export function steerMuster(w: World, leader: Vehicle, goal: NpcActivity): void {
+  if (goal.until === undefined) return rideHome(w, leader, goal);
   if (musterOver(w, leader, goal)) return endMuster(w, leader, goal);
   const next = crewCandidates(w, leader, askedOf(goal))[0];
   if (!next) return waitAtCamp(goal);

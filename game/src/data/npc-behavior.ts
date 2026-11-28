@@ -131,6 +131,7 @@ export const CREW = {
   musterTurns: 40,
   huntTurns: 300,
   retryTurns: 150,
+  homeMuster: 0.25,
   campReach: 12,
   askReach: 10,
   initiative: 0.1,
