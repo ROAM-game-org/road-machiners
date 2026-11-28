@@ -25,13 +25,28 @@ function meshOf(material: THREE.Material): THREE.Mesh {
   return new THREE.Mesh(new THREE.BoxGeometry(), material);
 }
 
+describe('model fill truck floor', () => {
+  it('defines the ink light floor only in truck programs and refuses a material used as both', () => {
+    const truck = new THREE.MeshLambertMaterial();
+    const prop = new THREE.MeshLambertMaterial();
+    const fill = new ModelFill();
+    fill.shadeTruck(meshOf(truck));
+    fill.shadeTree(meshOf(prop));
+    expect(lambertShader(truck).fragmentShader).toContain('#define INK_LIGHT_FLOOR modelFill.w');
+    expect(lambertShader(prop).fragmentShader).not.toContain('#define INK_LIGHT_FLOOR');
+    expect(truck.customProgramCacheKey()).toContain('|truck');
+    expect(prop.customProgramCacheKey()).not.toContain('|truck');
+    expect(() => fill.shadeTree(meshOf(truck))).toThrow(/both a truck and a prop/);
+  });
+});
+
 describe('model fill', () => {
   it('lights camera-facing faces of a Lambert shader through one uniform and keys the program', () => {
     const material = new THREE.MeshLambertMaterial();
     new ModelFill().shadeTree(meshOf(material));
     const shader = lambertShader(material);
     expect(Object.keys(shader.uniforms).filter((key) => !key.startsWith('ink'))).toEqual(['modelFill']);
-    expect(shader.fragmentShader).toContain('reflectedLight.indirectDiffuse += modelFill * max(normal.z, 0.0)');
+    expect(shader.fragmentShader).toContain('reflectedLight.indirectDiffuse += modelFill.rgb * max(normal.z, 0.0)');
     expect(material.customProgramCacheKey()).toContain('|fill');
   });
 
@@ -60,7 +75,7 @@ describe('model fill', () => {
     expect(material.customProgramCacheKey().match(/\|fill/g)).toHaveLength(1);
     const shader = lambertShader(material);
     expect(shader.fragmentShader).toContain('cloudDim()');
-    expect(shader.fragmentShader).toContain('modelFill *');
+    expect(shader.fragmentShader).toContain('modelFill.rgb *');
   });
 
   it('patches an armor cut copy of a patched material once', () => {
@@ -70,8 +85,8 @@ describe('model fill', () => {
     const copy = withCut(material, { wheels: [], lamps: [], top: topCut({ cell: 0.1, i0: 0, j0: 0, top: [[40]] }, { along: [], across: [] }), stripe: new THREE.Color(), stripeAt: 0 });
     fill.shadeTree(meshOf(copy));
     const shader = lambertShader(copy);
-    expect(shader.fragmentShader.match(/uniform vec3 modelFill;/g)).toHaveLength(1);
-    expect(shader.fragmentShader.match(/modelFill \*/g)).toHaveLength(1);
+    expect(shader.fragmentShader.match(/uniform vec4 modelFill;/g)).toHaveLength(1);
+    expect(shader.fragmentShader.match(/modelFill\.rgb \*/g)).toHaveLength(1);
   });
 
   it('follows the sky color, strong by day and faint at night', () => {
@@ -79,13 +94,14 @@ describe('model fill', () => {
     const material = new THREE.MeshLambertMaterial();
     fill.shadeTree(meshOf(material));
     const shader = lambertShader(material);
-    const value = () => (shader.uniforms.modelFill as { value: THREE.Color }).value.clone();
+    const value = () => (shader.uniforms.modelFill as { value: THREE.Vector4 }).value.clone();
     const noon = daylightAt(turnAt(12));
     fill.sync(noon);
-    expect(value().equals(noon.sky.clone().multiplyScalar(noon.fillIntensity))).toBe(true);
+    const want = noon.sky.clone().multiplyScalar(noon.fillIntensity);
+    expect([value().x, value().y, value().z]).toEqual([want.r, want.g, want.b]);
     fill.sync(daylightAt(turnAt(23.5)));
-    expect(value().r).toBeGreaterThan(0);
-    expect(value().r * 4).toBeLessThan(noon.sky.r * noon.fillIntensity);
+    expect(value().x).toBeGreaterThan(0);
+    expect(value().x * 4).toBeLessThan(noon.sky.r * noon.fillIntensity);
   });
 
   it('reaches models in a model scope and leaves the ground scope alone', () => {

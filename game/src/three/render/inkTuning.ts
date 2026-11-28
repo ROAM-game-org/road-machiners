@@ -2,7 +2,7 @@ function pageParams(): URLSearchParams {
   return new URLSearchParams(globalThis.location?.search ?? "");
 }
 
-export type TuningKey = "color" | "shadeLine" | "shadeDark" | "shadeShift" | "castDark" | "shadeCut" | "hatch" | "hatchPx" | "objectHatch" | "contour" | "contourStep" | "contourSoft" | "contourOpacity" | "contourCross" | "relief" | "litFace" | "cliffStreaks" | "crestLine" | "crestWidth" | "crestFold" | "edgeSoft" | "materialContrast" | "surround" | "farMarks" | "heightTint" | "edgeWobble" | "waveSize" | "halo" | "tufts" | "trackEdge" | "trackRuts" | "edgeShadow" | "edgeShadowWidth" | "outline" | "fxInk" | "smokeLines" | "smokeSize" | "dustSize" | "dustAmount" | "plumeOpacity" | "dustEdge" | "dustThin" | "dustThick" | "dustTint" | "dustShade" | "dustShadeReach" | "dustBands" | "dustBandStep" | "dustBandShade" | "dustLines" | "dustStreaks" | "dustStreakPx" | "dustStreakDark" | "bankShade" | "bankLines" | "bankCool" | "fireEdge" | "fireBandStep" | "fireLines" | "fireLinePx" | "fireTongue" | "fireTongueSize" | "fireTongueSpeed" | "crt";
+export type TuningKey = "color" | "shadeLine" | "shadeDark" | "shadeShift" | "castDark" | "shadeCut" | "hatch" | "hatchPx" | "objectHatch" | "contour" | "contourStep" | "contourSoft" | "contourOpacity" | "contourCross" | "relief" | "litFace" | "cliffStreaks" | "crestLine" | "crestWidth" | "crestFold" | "edgeSoft" | "materialContrast" | "surround" | "farMarks" | "heightTint" | "edgeWobble" | "waveSize" | "halo" | "tufts" | "trackEdge" | "trackRuts" | "edgeShadow" | "edgeShadowWidth" | "outline" | "fxInk" | "smokeLines" | "smokeSize" | "dustSize" | "dustAmount" | "plumeOpacity" | "dustEdge" | "dustThin" | "dustThick" | "dustTint" | "dustShade" | "dustShadeReach" | "dustBands" | "dustBandStep" | "dustBandShade" | "dustLines" | "dustStreaks" | "dustStreakPx" | "dustStreakDark" | "bankShade" | "bankLines" | "bankCool" | "fireEdge" | "fireBandStep" | "fireLines" | "fireLinePx" | "fireTongue" | "fireTongueSize" | "fireTongueSpeed" | "crt" | "nightLight" | "truckNight";
 
 export type Knob = { label: string; min: number; max: number; step: number; start: number; unit?: "m" | "px" | "tiles" | "°" };
 
@@ -70,6 +70,8 @@ export const KNOBS: Record<TuningKey, Knob> = {
   fireTongue: { label: "Tongue reach", min: 0, max: 3, step: 0.05, start: 0.9, unit: "m" },
   fireTongueSize: { label: "Tongue size", min: 0.1, max: 3, step: 0.05, start: 0.8, unit: "m" },
   fireTongueSpeed: { label: "Tongue rise speed", min: 0, max: 5, step: 0.1, start: 1.5 },
+  nightLight: { label: "Night light", min: 0.05, max: 1, step: 0.05, start: 0.25 },
+  truckNight: { label: "Truck night light", min: 0, max: 0.2, step: 0.005, start: 0.07 },
   crt: { label: "CRT filter", min: 0, max: 1, step: 0.05, start: 0 },
 };
 

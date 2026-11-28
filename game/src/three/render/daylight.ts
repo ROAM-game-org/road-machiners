@@ -14,6 +14,7 @@ import type { Vehicle, World } from "../../sim/types";
 import { DEG, type Vec } from "../../sim/vec";
 import { MODEL_FILL } from "./modelFill";
 import { syncInkLight, type InkLight } from "./inkPaint";
+import { TUNING } from "./inkTuning";
 export { enableSunShadows } from "./shadowFilter";
 export { refreshShadows } from "./shadowRefresh";
 
@@ -26,7 +27,7 @@ const GLASS_SATURATION = 0.9;
 const SHADOW_SOFTNESS = 1.5;
 export const SHADOW_MAP = 4096;
 
-type Key = {
+export type Key = {
   h: number;
   sun: number;
   sunI: number;
@@ -145,10 +146,17 @@ function sunHeight(hour: number): { h: number; dir: Vec } {
   };
 }
 
-function colorsAt(h: number): Omit<Daylight, "dir" | "elevation"> {
-  const hi = KEYS.findIndex((k) => k.h <= h);
-  const a = hi === -1 ? KEYS[KEYS.length - 1] : KEYS[Math.max(0, hi - 1)];
-  const b = hi === -1 ? a : KEYS[hi];
+export function nightKey(nightLight: number): Key {
+  if (!(nightLight > 0 && nightLight <= 1)) throw new Error(`Night light must be in (0, 1], got ${nightLight}`);
+  const night = KEYS[KEYS.length - 1];
+  return { ...night, sunI: night.sunI * nightLight, skyI: night.skyI * nightLight };
+}
+
+export function colorsAt(h: number, nightLight: number): Omit<Daylight, "dir" | "elevation"> {
+  const keys = [...KEYS.slice(0, -1), nightKey(nightLight)];
+  const hi = keys.findIndex((k) => k.h <= h);
+  const a = hi === -1 ? keys[keys.length - 1] : keys[Math.max(0, hi - 1)];
+  const b = hi === -1 ? a : keys[hi];
   const s = a === b ? 0 : (a.h - h) / (a.h - b.h);
   const mix = (x: number, y: number) =>
     new THREE.Color(x).lerp(new THREE.Color(y), s);
@@ -171,11 +179,11 @@ function desaturate(c: THREE.Color): THREE.Color {
 }
 
 const GOLDEN_HOUR_FROM = KEYS[1].h;
-const INK_FULL_DAY: InkLight = { ...colorsAt(GOLDEN_HOUR_FROM), elevation: GOLDEN_HOUR_FROM * DEG };
+const INK_FULL_DAY: InkLight = { ...colorsAt(GOLDEN_HOUR_FROM, 1), elevation: GOLDEN_HOUR_FROM * DEG };
 
 export function daylightAt(turn: number): Daylight {
   const { h, dir } = sunHeight(clockOf(turn).hour);
-  const colors = colorsAt(h);
+  const colors = colorsAt(h, TUNING.nightLight.value);
   if (h >= 0)
     return {
       ...colors,

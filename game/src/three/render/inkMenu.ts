@@ -17,6 +17,7 @@ export const LOOK_GROUPS: Group[] = [
   { title: "Smoke screen", keys: ["bankShade", "bankLines", "bankCool"] },
   { title: "Fire", keys: ["fireEdge", "fireBandStep", "fireLines", "fireLinePx", "fireTongue", "fireTongueSize", "fireTongueSpeed"] },
   { title: "Elevation lines", keys: ["contour", "contourStep", "contourSoft", "contourOpacity", "contourCross"], gate: "contour" },
+  { title: "Night", keys: ["nightLight", "truckNight"] },
   { title: "Screen", keys: ["crt"] },
 ];
 
