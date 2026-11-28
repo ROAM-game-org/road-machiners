@@ -6,6 +6,7 @@ import { wreckVehicle } from '../combat';
 import { playerVehicle } from '../damage';
 import { buyGood, rationing, type Supply } from '../economy';
 import { moveFarCombat } from '../far';
+import { hasCargoRoom } from '../inventory';
 import { goodPrice, goodStock, pressureOf, shopState, siteOf, stockTarget, watchStock, type StockCause } from '../market';
 import { yieldTo } from '../parley';
 import { isOutlaw } from '../relations';
@@ -80,11 +81,7 @@ function stockpile(world: World): World {
   me.speed = 0;
   world.player.money = 1000000;
   let w = world;
-  while (goodStock(shopState(w, 'granary'), 'rations') > 0) {
-    const room = me.items.length;
-    w = buyGood(w, 'rations', 1);
-    if (playerVehicle(w).items.length === room) break;
-  }
+  while (goodStock(shopState(w, 'granary'), 'rations') > 0 && hasCargoRoom(playerVehicle(w))) w = buyGood(w, 'rations', 1);
   return w;
 }
 
