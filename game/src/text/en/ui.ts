@@ -33,6 +33,8 @@ export const UI = {
   'card.zoomedOut': 'Whole truck shown',
   'card.call': 'Radio',
   'card.mark': 'Mark',
+  'card.follow': 'Follow',
+  'card.followTip': 'Follow at its speed until you steer',
   'card.lookOver': 'Look over',
   'card.lookOverTip': m('Look over, takes {n, plural, one {# turn} other {# turns}}', { n: 'count' }),
   'hud.horn': 'Horn',

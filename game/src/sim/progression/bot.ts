@@ -52,6 +52,7 @@ import { procurerGoal } from './procurer';
 import { fuelForWay, fuelReaches, reachable, SHOP_SITES } from './reach';
 import { searcherGoal, takeSearch } from './searcher';
 import { surveyorGoal as surveyGoal, type SurveyorMoves } from './surveyor';
+import { followedId, followError, followTruck } from '../follow';
 import { driveTo, driveToSite, mountBought, Orders, rearm, replyPick, REPAIR_PARTS, upgradeGear, type BotTurn, type UpgradeStyle } from './orders';
 
 export type Archetype = 'trader' | 'scavenger' | 'fastTrader' | 'hauler' | 'procurer' | 'searcher' | 'surveyor' | 'climber' | 'markov' | 'escort' | 'sprinter';
@@ -522,11 +523,10 @@ function takeHaul(o: Orders): boolean {
 
 function followClient(o: Orders, job: EscortContract): void {
   const client = o.world.vehicles.find((v) => v.id === job.client);
-  if (!client || dist(o.me.pos, client.pos) <= ESCORT_KEEP_GAP) return;
+  if (!client || followedId(o.world) === client.id) return;
+  if (followError(o.world, client.id) === null) return o.run((w) => followTruck(w, client.id));
   driveTo(o, besideStop(o.world, client.pos, vehicleStats(o.world, client).radius));
 }
-
-const ESCORT_KEEP_GAP = 8;
 
 function takeEscort(o: Orders): boolean {
   const shop = shopAt(o.world);

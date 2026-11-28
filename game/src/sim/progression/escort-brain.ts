@@ -1,33 +1,18 @@
-import { followDrive } from '../ai';
+import { clearFollowSpot, trailOrder } from '../follow';
 import { haulerOf } from '../damage';
 import { isKnockedOut } from '../defeat';
 import { backOutSpot } from '../free-spot';
-import { isFree } from '../spawn';
 import { visibleHostiles } from '../npc-decisions';
 import { heldAway, recoveryOrder, startRecovery, tickRecovery, type StallMemory } from '../stall';
 import { vehicleStats } from '../stats';
-import { followSpot } from '../tow';
 import type { MoveOrder, Vehicle, World } from '../types';
 import { dist, type Vec } from '../vec';
 import { RULES } from '../../data/rules';
 import { asFighter, fightMoveFor } from './fighter';
 
-const FOLLOW_RANKS = [0, 1, 2, 3];
-const BEHIND_RANK = 2;
-
 export type Stall = StallMemory & { turn?: number };
 
-export function clearFollowSpot(world: World, me: Vehicle, leader: Vehicle): Vec {
-  const radius = vehicleStats(world, me).radius;
-  const spots = FOLLOW_RANKS.map((rank) => followSpot(world, me, leader, rank));
-  return spots.find((spot) => isFree(world, spot, radius, me.id)) ?? spots[BEHIND_RANK];
-}
-
-export function followMove(world: World, me: Vehicle, leader: Vehicle): MoveOrder {
-  const spot = clearFollowSpot(world, me, leader);
-  const order = followDrive(me, leader, spot);
-  return order.kind === 'through' && order.pace !== undefined && order.pace <= RULES.parkedSpeed ? { kind: 'stopAt', dest: spot } : order;
-}
+export const followMove = trailOrder;
 
 export function escortFoe(world: World, me: Vehicle): Vehicle | null {
   const hauler = haulerOf(world).id;

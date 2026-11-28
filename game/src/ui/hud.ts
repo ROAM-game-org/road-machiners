@@ -75,6 +75,7 @@ import { backgroundNeeds } from "./garage-draw";
 import { setText } from "../text/language";
 import { list, SPACE, t, type Msg } from "../text/msg";
 import { isLate, isMet, type Contract } from "../sim/market";
+import { followedId, followError } from "../sim/follow";
 import { driverName, factionName, refusalText, siteName, templateName, vehicleTitle } from "../text/names";
 
 export type ContextTarget =
@@ -187,7 +188,7 @@ type HudActions = {
   aimPart: (vehicleId: string, partId: string) => void;
   aimState: (vehicleId: string) => AimState;
 };
-export type CardAction = 'mark' | 'lookOver';
+export type CardAction = 'mark' | 'lookOver' | 'follow';
 
 const TOAST_MS = 3500;
 const CONDITION_LENGTH_M = 7.8;
@@ -764,11 +765,12 @@ function infoFacts(w: World, v: Vehicle, hostile: boolean): HTMLElement | null {
 
 export interface CardHandlers {
   call: () => void;
-  act: (action: "mark" | "lookOver") => void;
+  act: (action: CardAction) => void;
 }
 
-function actionButton(label: Msg, key: string, refusal: Msg | null, onclick: () => void, tip: Msg = label): HTMLElement[] {
-  return [el("button", { class: "hud-key", "data-shortcut": key, ...disabledWith(refusal, onclick), title: keyTip(refusal ?? tip, key) }, el("span", { class: "key-label" }, label))];
+function actionButton(label: Msg, key: string, refusal: Msg | null, onclick: () => void, tip: Msg = label, pressed?: boolean): HTMLElement[] {
+  const state = pressed === undefined ? {} : { "aria-pressed": String(pressed) };
+  return [el("button", { class: "hud-key", "data-shortcut": key, ...state, ...disabledWith(refusal, onclick), title: keyTip(refusal ?? tip, key) }, el("span", { class: "key-label" }, label))];
 }
 
 export function recenterTip(onclick: () => void): HTMLElement {
@@ -784,8 +786,15 @@ function otherTruckButtons(w: World, v: Vehicle, handlers: CardHandlers): HTMLEl
   const buttons: HTMLElement[] = [];
   if (v.brain && modeRules(w).radio) buttons.push(...actionButton(t("card.call"), "T", callError(w, v.id), handlers.call));
   if (hasBasic(w, "lookOver")) buttons.push(...lookOverButton(w, v, handlers));
+  buttons.push(...followButton(w, v, handlers));
   if (hasPerk(w, "spotter")) buttons.push(...actionButton(t("card.mark"), "N", reasonOf(w, markError(w, v.id)), () => handlers.act("mark")));
   return buttons;
+}
+
+function followButton(w: World, v: Vehicle, handlers: CardHandlers): HTMLElement[] {
+  const following = followedId(w) === v.id;
+  const refusal = following ? null : reasonOf(w, followError(w, v.id));
+  return actionButton(t("card.follow"), "K", refusal, () => handlers.act("follow"), t("card.followTip"), following);
 }
 
 function lookOverButton(w: World, v: Vehicle, handlers: CardHandlers): HTMLElement[] {

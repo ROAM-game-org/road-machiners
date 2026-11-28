@@ -34,6 +34,8 @@ export const UI: Translation<typeof EN> = {
   'card.zoomedOut': 'Виден весь грузовик',
   'card.call': 'Рация',
   'card.mark': 'Пометить',
+  'card.follow': 'Следовать',
+  'card.followTip': 'Следовать с его скоростью, пока не перехватите управление',
   'card.lookOver': 'Осмотреть',
   'card.lookOverTip': 'Осмотреть, займёт {n, plural, one {# ход} few {# хода} many {# ходов} other {# хода}}',
   'hud.horn': 'Гудок',

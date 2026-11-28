@@ -592,6 +592,7 @@ export class Game {
     KeyU: { run: () => this.controls.firstAid(), control: "none", noModal: true, idle: true },
     KeyL: { run: () => this.controls.toggleHeadlights(), control: () => this.hud.lightsSwitch(), noModal: true },
     KeyN: { run: () => this.context.onCard('mark', this.inspected()), control: () => this.hud.cardKey("N"), noModal: true, idle: true },
+    KeyK: { run: () => this.context.onCard('follow', this.inspected()), control: () => this.hud.cardKey("K"), noModal: true, idle: true },
     KeyB: { run: () => this.context.onCard('lookOver', this.inspected()), control: () => this.hud.cardKey("B"), noModal: true, idle: true },
     KeyC: { run: () => this.screens.toggleCharacter("skills"), control: () => this.hud.systemKey("character"), idle: true, screen: true },
     KeyM: { run: () => hasExplorationMap(this.world) && this.screens.toggleCharacter("map"), control: () => this.hud.systemKey("map"), idle: true, screen: true },

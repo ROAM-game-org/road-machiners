@@ -1022,6 +1022,7 @@ function bountyClosedText(world: World, e: Extract<GameEvent, { t: 'bountyClosed
 const EVENT_TEXTS: { [K in GameEvent['t']]: (world: World, e: Extract<GameEvent, { t: K }>) => LogLine | null } = {
   roadHorn: () => null,
   activity: activityText,
+  followEnded: (world, e) => line(t(e.why === 'lost' ? 'log.followLost' : 'log.followStopped', { who: knownTruckName(world, e.vehicle) }), 'dim'),
   stall: stallText,
   preyPassed: preyPassedText,
   info: infoText,

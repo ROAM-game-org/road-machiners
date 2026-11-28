@@ -90,8 +90,8 @@ export type UtilityOrder =
 export type Pose = { x: number; y: number; heading: number; bend?: number };
 
 export type MoveOrder =
-  | { kind: "through"; dest: Vec; pace?: number }
-  | { kind: "stopAt"; dest: Vec; pace?: number }
+  | { kind: "through"; dest: Vec; pace?: number; follow?: string }
+  | { kind: "stopAt"; dest: Vec; pace?: number; follow?: string }
   | { kind: "brake" };
 
 export type SalvageStock = {
@@ -242,6 +242,9 @@ export type Refusal =
   | { id: 'cargoOwed' }
   | { id: 'refitRunning' }
   | { id: 'gatesShut' }
+  | { id: 'followLost' }
+  | { id: 'followHostile' }
+  | { id: 'followDowned' }
   | { id: 'twoInTheWay' }
   | { id: 'refitItemMoved' }
   | { id: 'builtInFixed' }
@@ -593,6 +596,7 @@ export type GameEvent =
   | { t: 'npcKnockout'; vehicle: string; by: string }
   | { t: 'npcWake'; vehicle: string; gaveUp: boolean }
   | { t: 'arrived'; vehicle: string }
+  | { t: 'followEnded'; vehicle: string; why: 'gone' | 'lost' | 'downed' | 'hostile' }
   | { t: 'spawn'; vehicle: string }
   | { t: 'despawn'; vehicle: string }
   | { t: 'hostile'; vehicle: string; against: string }
