@@ -51,7 +51,7 @@ export const TALK: Translation<typeof EN> = {
   'line.dealTerms': '{deal}',
   'line.demandCargo': 'Сбрасывай {haul} и катись дальше. Или сниму всё с твоих обломков.',
   'line.demandCargoOrPay': 'Сбрасывай {haul} и катись дальше. Или плати {price} и оставляй груз себе. Иначе сниму всё с твоих обломков.',
-  'line.demandCutLine': 'Плати {price} и катись дальше. Скажешь нет — разберусь со стволами.',
+  'line.demandCutLine': 'Плати {price} и катись дальше. Скажешь нет — пущу в ход стволы.',
   'line.noFreeRidePay': 'Даром не отпущу. Сбрасывай {haul} или плати {price}, и мы в расчёте.',
   'line.noFreeRideCut': 'Даром не отпущу. Плати {price}, и мы в расчёте.',
   'line.leaveItOrPay': 'Оставь {haul} на земле или плати {price} и уезжай.',
