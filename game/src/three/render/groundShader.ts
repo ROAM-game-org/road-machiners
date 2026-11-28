@@ -438,7 +438,10 @@ vec3 wearRim(vec3 color, vec4 wear, float wander) {
 `;
 
 const NOISE = `float noiseHash(vec2 p) {
-  return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+  ivec2 c = ivec2(p);
+  uint h = uint(c.x) * 374761393u + uint(c.y) * 668265263u;
+  h = (h ^ (h >> 13u)) * 1274126177u;
+  return float((h ^ (h >> 16u)) >> 8u) / 16777216.0;
 }
 float valueNoise(vec2 p) {
   vec2 i = floor(p);
@@ -687,9 +690,8 @@ float drawnHalo(DrawnBorder edge, int own, float streak, float crumb, float wand
   float depthAa = fwidth(depth) + 0.001;
   return smoothstep(-aa, aa, past) * mix(${DRAWN_HALO_RIM_MIX.toFixed(2)}, ${DRAWN_HALO_CORE_MIX.toFixed(2)}, smoothstep(0.5 - depthAa, 0.5 + depthAa, depth));
 }
-float drawnHaloMeters(float past, float pxMeters, bool samePair) {
-  float slope = fwidth(past);
-  return samePair ? past / max(slope, 0.0001) * pxMeters : -${DRAWN_FAR_TILES.toFixed(1)} * facetSide;
+float drawnHaloMeters(float past, float slope, float pxMeters) {
+  return past / max(slope, 0.0001) * pxMeters;
 }
 float drawnSideOf(int own, int other) {
   return own < other ? 1.0 : -1.0;
@@ -925,8 +927,8 @@ const BORDER_BODY = `
   float drawnHaloDrift = drawnHaloWander(vWorldXZ, drawnDetailPx);
   float drawnOwnHalo = drawnHalo(drawnEdge, drawnEdge.own, drawnStreak, drawnHaloCrumb, drawnHaloDrift, drawnHaloAa, drawnOwnHaloPast);
   float drawnAcrossHalo = drawnHalo(drawnEdge, drawnEdge.across, drawnStreak, drawnHaloCrumb, drawnHaloDrift, drawnHaloAa, drawnAcrossHaloPast);
-  bool drawnSameOwn = fwidth(float(drawnEdge.own)) == 0.0;
-  float drawnOwnHaloMeters = drawnHaloMeters(drawnOwnHaloPast, drawnPxMeters, drawnSameOwn);
+  float drawnOwnHaloSlope = fwidth(drawnEdge.spill) * drawnHaloAmount * (1.0 - drawnMaterialPepper[drawnEdge.own]);
+  float drawnOwnHaloMeters = drawnHaloMeters(drawnOwnHaloPast, drawnOwnHaloSlope, drawnPxMeters);
   vec3 drawnOwnColor = mix(drawnMaterialTone(drawnEdge.own), drawnEdge.spillColor, drawnOwnHalo);
   vec3 drawnAcrossColor = mix(drawnMaterialTone(drawnEdge.across), drawnEdge.spillColor, drawnAcrossHalo);
   diffuseColor.rgb = mix(drawnAcrossColor, drawnOwnColor, drawnOwnSide);

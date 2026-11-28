@@ -4,6 +4,12 @@ import { describe, expect, it } from "vitest";
 const source = readFileSync(new URL("./groundShader.ts", import.meta.url), "utf8");
 
 describe("ground shader source", () => {
+  it("hashes ground noise by whole lattice corners, so neighbouring cells share each corner", () => {
+    const body = source.match(/float noiseHash\(vec2 p\) \{[\s\S]*?\n\}/)?.[0] ?? "";
+    expect(body).toContain("ivec2");
+    expect(body).not.toMatch(/\b(sin|cos)\(/);
+  });
+
   it("builds no array constructor, which some Android drivers compile without a precision", () => {
     expect(source).not.toMatch(/\b(vec[234]|ivec[234]|float|int)\s*\[\s*\w+\s*\]\s*\(/);
   });
