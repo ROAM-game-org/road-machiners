@@ -4,7 +4,7 @@ import { START_KITS } from '../../data/start';
 import { TIME } from '../../data/time';
 import { wreckVehicle } from '../combat';
 import { playerVehicle } from '../damage';
-import { buyGood, rationing } from '../economy';
+import { buyGood, rationing, type Supply } from '../economy';
 import { moveFarCombat } from '../far';
 import { goodPrice, goodStock, pressureOf, shopState, siteOf, stockTarget, watchStock, type StockCause } from '../market';
 import { yieldTo } from '../parley';
@@ -46,6 +46,7 @@ const HAUL_CRATES = 20;
 const HAUL_FUEL_PER_TILE = 0.4;
 const RECOVERED_SHARE = 0.2;
 const SAMPLE_TURNS = Math.round(TIME.workDayTurns / 4);
+const RATIONED_KINDS: readonly Supply[] = ['fuel', 'supplies'];
 
 function npcsOf(world: World, templates: readonly string[]): Vehicle[] {
   return world.vehicles.filter((v) => v.brain && templates.includes(v.brain.templateId));
@@ -170,7 +171,9 @@ function tryShock(rec: Recording, shock: Shock, shockAt: number): void {
 
 function noteHour(rec: Recording): void {
   pressureRange(rec.world, rec.range);
-  for (const shopId of Object.keys(rec.world.shops)) if (rationing(rec.world, shopId, 'fuel')) rec.rationingHours[shopId] = (rec.rationingHours[shopId] ?? 0) + 1;
+  for (const shopId of Object.keys(rec.world.shops)) {
+    for (const kind of RATIONED_KINDS) if (rationing(rec.world, shopId, kind)) rec.rationingHours[`${shopId}:${kind}`] = (rec.rationingHours[`${shopId}:${kind}`] ?? 0) + 1;
+  }
 }
 
 function playTurn(rec: Recording, onDay: (s: DaySample) => void): void {
@@ -217,7 +220,7 @@ function formatRun(run: ShockRun): string[] {
   return [
     `## ${run.shock}, seed ${run.seed}, ${run.days} days`, '',
     `Shock turn: ${run.shockTurn ?? 'none'}. Pressure range ${run.pressureRange.min.toFixed(2)} to ${run.pressureRange.max.toFixed(2)}.`, '',
-    ...table(['day', 'traders', 'convoys', 'fuel rationing hours so far'], run.samples.map((d) => [d.day.toFixed(2), `${d.traders}`, `${d.convoys}`, hours(d)])),
+    ...table(['day', 'traders', 'convoys', 'rationing hours so far (site:kind)'], run.samples.map((d) => [d.day.toFixed(2), `${d.traders}`, `${d.convoys}`, hours(d)])),
     ...table(['flow', 'crates per day'], Object.entries(run.flows).sort().map(([k, n]) => [k, (n / run.days).toFixed(1)])),
     ...table(['site:good', 'stock by quarter day'], stockRows(run)),
     ...table(['essential', 'days to recover within 20%'], Object.entries(run.recoveryDays).map(([k, d]) => [k, d === null ? 'not yet' : `${d}`])),
