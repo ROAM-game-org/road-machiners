@@ -111,6 +111,9 @@ Base weights of every option at each decision point. Traits and states add or mu
 | warnRefused | fight | 1 |
 | mugging | demand | 3 |
 | mugging | attack | 2 |
+| claimContest | buy | 1 |
+| claimContest | takeIt | 0.4 |
+| claimContest | giveUp | 0.5 |
 | resume | resume | 9 |
 | resume | new | 1 |
 | bountyDemanded | pay | 3 |
@@ -177,6 +180,7 @@ A timed state between two vehicles, like a feud or a tow, is owned by `src/sim/s
 | patch | 40 | true |
 | trade | 20 | true |
 | handover | 20 | true |
+| claimBid | 20 | true |
 | revenge | 2000 | false |
 | escort |  | true |
 | strayFire | 60 | false |
