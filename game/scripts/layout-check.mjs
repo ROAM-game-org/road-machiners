@@ -428,6 +428,36 @@ const closeSurveyJournal = async (page) => {
   }, SURVEY_CONTRACT_ID);
 };
 
+const CLAIM_CONTRACT_ID = 'layout-claim';
+
+const openClaimJournal = async (page) => {
+  await page.evaluate(async (id) => {
+    const g = window.__ROAM__;
+    const { claimSpots, claimClue } = await import('/src/sim/claims.ts');
+    const world = g.state;
+    const held = claimSpots(world).map((stock) => ({ id, shop: 'bowl', kind: 'claim', stockId: stock.id, at: { ...stock.pos }, partId: 'layout-part', defId: 'mg', reward: 114, deadline: 9000, window: 9000, tier: 1, rivalAt: 9000, rival: null, leads: [] }));
+    const rank = (c) => {
+      const clue = claimClue(c);
+      return (clue.territory ? 1 : 0) + (clue.where ? 1 : 0) + (clue.where?.tier === 'offset' ? 1 : 0);
+    };
+    const claim = held.sort((a, b) => rank(b) - rank(a))[0];
+    claim.leads = [{ turn: world.turn, from: { x: claim.at.x + 40, y: claim.at.y + 30 }, driver: 'Jed Cobb' }, { turn: world.turn, from: { x: claim.at.x - 60, y: claim.at.y }, driver: 'Ada Cobb' }];
+    world.player.contracts.push(claim);
+    g.apply(world);
+  }, CLAIM_CONTRACT_ID);
+  await key(page, 'KeyJ');
+};
+
+const closeClaimJournal = async (page) => {
+  await escape(page);
+  await page.evaluate((id) => {
+    const g = window.__ROAM__;
+    const world = g.state;
+    world.player.contracts = world.player.contracts.filter((c) => c.id !== id);
+    g.apply(world);
+  }, CLAIM_CONTRACT_ID);
+};
+
 const JOURNAL_VIEWPORTS = [...VIEWPORTS, COMPACT];
 
 const keepWorld = (page) => page.evaluate(async () => {
@@ -1347,6 +1377,7 @@ const STATES = {
   'trade-untraded': { setup: openUntradedMarket, teardown: closeTown, check: marketFaults },
   'trade-shortage': { setup: openShortMarket, teardown: closeTown, check: marketFaults },
   charts: { setup: (page) => openTown(page, 'charts'), teardown: closeTown, check: nestedScrollFaults },
+  'journal-claim': { setup: openClaimJournal, teardown: closeClaimJournal, viewports: [...JOURNAL_VIEWPORTS, PHONE], check: journalFaults },
   'journal-survey': { setup: openSurveyJournal, teardown: closeSurveyJournal, viewports: [...JOURNAL_VIEWPORTS, PHONE], check: journalFaults },
   'journal-empty': { setup: openJournalWith('empty'), teardown: closeJournalState, viewports: JOURNAL_VIEWPORTS, check: journalFaults },
   'journal-longest': { setup: openJournalWith('longest'), teardown: closeJournalState, viewports: JOURNAL_VIEWPORTS, check: journalFaults },
