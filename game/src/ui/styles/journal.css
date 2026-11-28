@@ -136,12 +136,22 @@
   row-gap: var(--space-6);
 }
 .journal-place.survey .place-text,
-.journal-place.survey .place-way {
+.journal-place.survey .place-way,
+.journal-place.wreck .place-way {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
 }
-.journal-place.survey .place-from {
+#ui .journal-screen .journal-place.wreck .place-head {
+  display: block;
+  text-align: left;
+}
+.journal-place.wreck.open {
+  margin-block: var(--space-6);
+  gap: var(--space-6);
+}
+.journal-place.survey .place-from,
+.journal-place.wreck .place-from {
   font-size: var(--text-caption);
 }
 .journal-note,

@@ -48,7 +48,7 @@ export function directionsFromSite(world: World, siteId: string, target: Directi
   return [...head, ...best.plan.steps];
 }
 
-function toldInFull(steps: readonly DirectionStep[]): boolean {
+export function toldInFull(steps: readonly DirectionStep[]): boolean {
   return !steps.some((s) => s.do === 'askAgain' || s.do === 'noRoad');
 }
 

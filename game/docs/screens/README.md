@@ -31,6 +31,7 @@ Every image shows a new game on seed 4242, in English, at 1280 by 720, the small
 - `character.jpg`: the character screen, skills.
 - `world-map.jpg`: the character screen, map.
 - `journal-survey.jpg`: the journal with a survey contract.
+- `journal-wrecks.jpg`: the journal Wrecks tab with a told wreck's way open.
 - `full-shop.jpg`: the debug shop that holds every part.
 
 ## Town

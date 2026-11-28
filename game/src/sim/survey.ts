@@ -6,7 +6,7 @@ import type { OldPlaceType } from '../data/salvage';
 import SURVEY_SITES_FILE from '../data/survey-sites.json';
 import { atlasOf, type AtlasKey } from './atlas';
 import { DIRECTIONS } from '../data/directions';
-import { directionsFromSite } from './directions';
+import { directionsFromSite, toldInFull } from './directions';
 import { edgesOnSiteRoads, nearestRoadPoints, roadNetworkOfTerrain } from './road-network';
 import { estimateTurns, haulWindow, siteOf, type Contract } from './market';
 import { playerVehicle } from './damage';
@@ -217,7 +217,7 @@ export function surveyClue(c: SurveyContract, point: SurveyPoint): SurveyClue {
 export function surveyWay(world: World, c: SurveyContract, point: SurveyPoint): DirectionStep[] | null {
   const site = surveySite(world, point.site);
   const steps = directionsFromSite(world, c.shop, { kind: 'spot', pos: site.pos, clue: 'place' });
-  return steps.some((s) => s.do === 'noRoad' || s.do === 'askAgain') ? null : steps;
+  return toldInFull(steps) ? steps : null;
 }
 
 export function openSurveyPoint(c: SurveyContract): SurveyPoint | null {
