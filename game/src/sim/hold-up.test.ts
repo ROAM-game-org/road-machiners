@@ -103,6 +103,45 @@ describe('the hold-up price', () => {
     expect(holdsUp(w, robber, victim, null)).toBe(true);
   });
 
+  it('asks an NPC victim for the cash cut when the cut beats the cargo it could load', () => {
+    const { w, robber, victim } = setup();
+    addGoods(w, victim, 'scrap', 2);
+    victim.resources!.money = getUpkeepReserve(victim) + 1000;
+    const ransom = ransomOf(w, robber, victim);
+    expect(ransom.haul).toEqual([]);
+    expect(ransom.money).toBe(cashCut(w, victim));
+  });
+
+  it('keeps asking for the cargo when it is worth more than the cut', () => {
+    const { w, robber, victim } = setup();
+    addGoods(w, victim, 'electronics', 3);
+    victim.resources!.money = getUpkeepReserve(victim) + 1000;
+    const ransom = ransomOf(w, robber, victim);
+    expect(haulValue(ransom.haul)).toBeGreaterThan(cashCut(w, victim));
+    expect(ransom.money).toBe(haulPrice(ransom.haul));
+  });
+
+  it('still asks the player robber for the loose cargo', () => {
+    const { w, victim } = setup();
+    const me = addVehicle(w, 'independent', 'wagon', ['mg', 'stockEngine'], { x: 10, y: 14 });
+    addGoods(w, victim, 'scrap', 2);
+    victim.resources!.money = getUpkeepReserve(victim) + 1000;
+    expect(ransomOf(w, me, victim).haul.length).toBeGreaterThan(0);
+  });
+
+  it('lets a victim pay the cash cut and keep its cargo', () => {
+    const { w, robber, victim } = setup();
+    addGoods(w, victim, 'scrap', 2);
+    victim.resources!.money = getUpkeepReserve(victim) + 1000;
+    const ransom = ransomOf(w, robber, victim);
+    const cargo = victim.items.length;
+    fight(w, robber, victim);
+    giveInTo(w, victim, robber, ransom);
+    expect(victim.items).toHaveLength(cargo);
+    expect(getResources(w, robber).money).toBe(ransom.money);
+    expect(w.events.filter((e) => e.t === 'holdUp')).toMatchObject([{ paid: 'money', value: ransom.money }]);
+  });
+
   it('draws no random numbers', () => {
     const { w, robber, victim } = setup();
     victim.resources!.money = 100000;

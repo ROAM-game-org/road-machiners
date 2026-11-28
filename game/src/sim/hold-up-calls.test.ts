@@ -32,7 +32,7 @@ function ambush(cargo: boolean, fullRobber = false): { w: World; raider: Vehicle
   const w = emptyWorld({ x: 30, y: 30 });
   w.player.money = getUpkeepReserve(playerVehicle(w)) + CARRIED_CASH;
   for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
-  if (cargo) addGoods(w, playerVehicle(w), 'scrap', 2);
+  if (cargo) addGoods(w, playerVehicle(w), 'electronics', 2);
   else bare(w);
   const raider = addVehicle(w, 'scrapjaw', 'buggy', ['stockEngine', 'mg'], { x: 40, y: 30 }, Math.PI);
   raider.brain = npcBrain('buggy', raider.pos, ['raider']);
@@ -135,12 +135,27 @@ describe('a cash-only demand', () => {
   });
 });
 
+describe('a demand for M when the load is cheap', () => {
+  it('asks for the cut, and paying keeps the scrap and raises one money hold-up', () => {
+    const { w: start, raider } = ambush(false);
+    addGoods(start, playerVehicle(start), 'scrap', 2);
+    const w = endTurn(start, testDrive);
+    expect(w.player.call).toMatchObject({ with: raider.id, topic: 'demandCut' });
+    const cut = cashCut(w, playerVehicle(w));
+    expect(w.player.call!.vars.price).toEqual({ kind: 'money', amount: cut });
+    const next = pick(w, PAY);
+    expect(w.player.money - next.player.money).toBe(cut);
+    expect(hasCargo(playerVehicle(next))).toBe(true);
+    expect(next.events.filter((e) => e.t === 'holdUp')).toEqual([{ t: 'holdUp', robber: raider.id, victim: playerVehicle(next).id, paid: 'money', value: cut }]);
+  });
+});
+
 describe('a robber truce with a price', () => {
   function holdup(cargo: boolean): { w: World; robber: Vehicle } {
     const w = emptyWorld({ x: 30, y: 30 });
     w.player.money = getUpkeepReserve(playerVehicle(w)) + CARRIED_CASH;
     for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
-    if (cargo) addGoods(w, playerVehicle(w), 'scrap', 2);
+    if (cargo) addGoods(w, playerVehicle(w), 'electronics', 2);
     else bare(w);
     const robber = addVehicle(w, 'independent', 'buggy', ['stockEngine', 'mg'], { x: 40, y: 30 }, Math.PI);
     robber.brain = npcBrain('scavenger', robber.pos, ['scavenger', 'scumbag']);
@@ -170,6 +185,16 @@ describe('a robber truce with a price', () => {
     expect(next.player.talked[robber.id]?.demand).toBe('agreed');
   });
 
+  it('with a cheap load, asks the cut and keeps the load', () => {
+    const { w, robber } = holdup(false);
+    addGoods(w, playerVehicle(w), 'scrap', 2);
+    const open = askTruce(w, robber.id);
+    expect(open.player.call?.node).toBe('tollCut');
+    const next = pick(open, PAY);
+    expect(w.player.money - next.player.money).toBe(cashCut(w, playerVehicle(w)));
+    expect(hasCargo(playerVehicle(next))).toBe(true);
+  });
+
   it('with no cargo, names the cut alone and pays it', () => {
     const { w, robber } = holdup(false);
     const open = askTruce(w, robber.id);
@@ -186,7 +211,7 @@ describe('mercy with a price', () => {
     const w = emptyWorld({ x: 30, y: 30 });
     w.player.money = getUpkeepReserve(playerVehicle(w)) + CARRIED_CASH;
     for (const id of Object.keys(NPCS)) w.spawnTimer[id] = Number.MAX_SAFE_INTEGER;
-    if (cargo) addGoods(w, playerVehicle(w), 'scrap', 2);
+    if (cargo) addGoods(w, playerVehicle(w), 'electronics', 2);
     else bare(w);
     const npc = addVehicle(w, 'independent', 'scout', ['stockEngine', 'mg'], { x: 36, y: 30 });
     npc.brain = npcBrain('trader', npc.pos, ['scavenger']);
