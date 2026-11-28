@@ -1301,6 +1301,7 @@
 }
 .truck-head .card-name b {
   white-space: normal;
+  overflow-wrap: anywhere;
 }
 .truck-head > .screen-btn {
   flex: none;
