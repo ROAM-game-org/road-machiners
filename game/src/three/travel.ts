@@ -235,6 +235,7 @@ export class Travel {
   private speedIndex = 0;
   private pressedAt: number | null = null;
   private requested = false;
+  private stepped = false;
   private autoHalted = false;
   private autoPress = false;
   private tapHalts = false;
@@ -266,16 +267,17 @@ export class Travel {
     return step;
   }
 
-  pressTurn(playing: boolean, world: World): boolean {
+  pressTurn(playing: boolean, world: World): { step: boolean; queues: boolean } {
     if (autoRuns(world)) {
-      if (this.pressedAt !== null) return false;
+      if (this.pressedAt !== null) return { step: false, queues: false };
       this.tapHalts = !this.autoHalted;
       this.autoHalted = false;
       this.autoPress = true;
       this.pressedAt = performance.now();
-      return false;
+      return { step: false, queues: false };
     }
-    return this.press(performance.now(), playing, followsOrder(world));
+    const queues = playing && this.stepped;
+    return { step: this.press(performance.now(), playing, followsOrder(world)), queues };
   }
 
   autoAllowed(world: World): boolean {
@@ -355,6 +357,7 @@ export class Travel {
   }
 
   request(world: World, drive: DriveSnapshot): void {
+    this.stepped = !this.automatic && !autoRuns(world);
     this.requested = true;
     this.turns.prepare(world, drive);
   }
@@ -385,6 +388,7 @@ export class Travel {
   private takePrepared(world: World, now: number): PreparedTurn | null {
     const prepared = this.turns.take(world);
     if (!prepared) return null;
+    if (!this.requested) this.stepped = false;
     if (!this.requested && overshoots(world, prepared.world)) {
       this.pause();
       return null;

@@ -381,10 +381,10 @@ describe("turns that run on their own", () => {
   it("a press with a drive-through order starts travel, and a press while playing stops it", () => {
     const world = setMoveOrder(makeSafeWorld(), { kind: "through", dest: { x: 40, y: 30 } });
     const travel = new Travel(250, TAIL);
-    expect(travel.pressTurn(false, world)).toBe(true);
+    expect(travel.pressTurn(false, world).step).toBe(true);
     expect(travel.isAuto(world)).toBe(true);
     travel.release();
-    expect(travel.pressTurn(true, world)).toBe(false);
+    expect(travel.pressTurn(true, world).step).toBe(false);
     expect(travel.isAuto(world)).toBe(false);
   });
 
@@ -859,7 +859,7 @@ describe("turns on a tow rope", () => {
     const world = setMoveOrder(start, { kind: "through", dest: { x: playerVehicle(start).pos.x + 60, y: playerVehicle(start).pos.y } });
     const drive = {} as DriveSnapshot;
     travel.setSpeedIndex(CONFIG.travelSpeeds.length - 1);
-    expect(travel.pressTurn(false, world)).toBe(true);
+    expect(travel.pressTurn(false, world).step).toBe(true);
     travel.request(world, drive);
     expect(prepare).toHaveBeenCalledWith(world, drive);
   });
@@ -1470,5 +1470,70 @@ describe("the world a save writes", () => {
     const after = { ...before, turn: before.turn + 1 };
     expect(committedWorld(after, { before } as Playback)).toBe(before);
     expect(committedWorld(after, null)).toBe(after);
+  });
+});
+
+describe("a tap while a turn plays", () => {
+  const ROUTE = { kind: "through", dest: { x: 40, y: 30 } } as const;
+  const prepared = { world: { events: [], vehicles: [] } } as unknown as PreparedTurn;
+  const withTurns = () => {
+    const travel = new Travel(250, TAIL);
+    Object.assign(travel, { turns: { prepare: vi.fn(), take: () => prepared, isReady: () => true, keptSpeed: () => Infinity } });
+    return travel;
+  };
+  const runTurn = (travel: Travel, world: World) => {
+    expect(travel.takeReady(world, NO_DRIVE, 1)).toBe(prepared);
+    return world;
+  };
+
+  it("stops a run that paused itself in the turn on a sighting, and queues nothing", () => {
+    const world = setMoveOrder(makeSafeWorld(), ROUTE);
+    const travel = withTurns();
+    travel.pressTurn(false, world);
+    travel.release();
+    runTurn(travel, world);
+    travel.updateWorld(world, true);
+    expect(travel.isAuto(world)).toBe(false);
+    expect(travel.pressTurn(true, world)).toEqual({ step: false, queues: false });
+    travel.release();
+    expect(travel.continues(world, performance.now())).toBe(false);
+  });
+
+  it("queues nothing for a second tap in the same run turn", () => {
+    const world = setMoveOrder(makeSafeWorld(), ROUTE);
+    const travel = withTurns();
+    travel.pressTurn(false, world);
+    travel.release();
+    runTurn(travel, world);
+    expect(travel.pressTurn(true, world).queues).toBe(false);
+    travel.release();
+    expect(travel.pressTurn(true, world).queues).toBe(false);
+    travel.release();
+    expect(travel.continues(world, performance.now())).toBe(false);
+  });
+
+  it("queues one turn for a tap while a stepped turn plays", () => {
+    const world = makeSafeWorld();
+    const travel = withTurns();
+    expect(travel.pressTurn(false, world).step).toBe(true);
+    travel.release();
+    travel.request(world, NO_DRIVE);
+    expect(travel.pressTurn(true, world)).toEqual({ step: false, queues: true });
+    travel.release();
+    travel.request(world, NO_DRIVE);
+    runTurn(travel, world);
+    expect(travel.pressTurn(true, world)).toEqual({ step: false, queues: true });
+  });
+
+  it("keeps a run that a tap resumed during its last turn", () => {
+    const world = makeSafeWorld();
+    world.player.state = "knockedOut";
+    const travel = withTurns();
+    travel.pressTurn(false, world);
+    travel.release();
+    expect(travel.autoAllowed(world)).toBe(false);
+    expect(travel.pressTurn(true, world).queues).toBe(false);
+    travel.release();
+    expect(travel.autoAllowed(world)).toBe(true);
   });
 });

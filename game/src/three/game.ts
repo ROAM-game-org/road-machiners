@@ -552,9 +552,9 @@ export class Game {
     if (from === "key") keyPress(this.weapons.playKey());
     this.screens.inventoryTime.press();
     const playing = this.travel.isPlaying(this.anim);
-    const stopsAuto = this.travel.isAuto(this.world);
-    if (this.travel.pressTurn(playing, this.world)) this.endTurn();
-    this.pressedDuringTurn = playing && !stopsAuto;
+    const { step, queues } = this.travel.pressTurn(playing, this.world);
+    if (step) this.endTurn();
+    this.pressedDuringTurn = queues;
   }
 
   private searchFromLoot(stockId: string): void {
