@@ -1,3 +1,4 @@
+import { repairContent } from './save-repair';
 import { describe, expect, it } from 'vitest';
 import { NPCS } from '../data/npcs';
 import { playerVehicle } from './damage';
@@ -261,6 +262,26 @@ describe('a call saved before the price existed', () => {
     expect(texts(loaded)).toEqual([DROP, REFUSE]);
     const next = pick(loaded, DROP);
     expect(hasCargo(playerVehicle(next))).toBe(false);
+  });
+});
+
+describe('a cargo demand saved before the rule asked for M', () => {
+  it('loads without the call, and the robber raises the cut demand on the next turn', () => {
+    const { w: start, raider } = ambush(true);
+    const open = endTurn(start, testDrive);
+    expect(open.player.call).toMatchObject({ with: raider.id, topic: 'demand' });
+    const saved: World = JSON.parse(JSON.stringify(open));
+    const me = playerVehicle(saved);
+    me.items = me.items.filter((item) => item.kind !== 'good');
+    addGoods(saved, me, 'scrap', 2);
+    const events = saved.events.length;
+    const money = saved.player.money;
+    repairContent(saved);
+    expect(saved.player.call).toBeNull();
+    expect(saved.events.length).toBe(events);
+    expect(saved.player.money).toBe(money);
+    const next = endTurn(saved, testDrive);
+    expect(next.player.call).toMatchObject({ with: raider.id, topic: 'demandCut' });
   });
 });
 

@@ -14,6 +14,7 @@ import { MAP_GRID, REGION } from '../data/region';
 import { SKILL_IDS, XP_SOURCES } from '../data/skills';
 import { HAULER_KIT, START_KITS } from '../data/start';
 import { CONDITION } from '../data/wear';
+import { ransomOf } from './haul';
 import { contractPay } from './contract-pay';
 import { settleAims } from './combat';
 import { everyTruck } from './sites';
@@ -654,8 +655,20 @@ function taleLacksStory(call: Call): boolean {
   return call.topic === 'tale' && call.node === 'offer' && call.vars.story === undefined;
 }
 
+const CARGO_ASKS = new Set(['demand', 'truce:tollCargo', 'mercy:sparedPrice']);
+const CUT_ASKS = new Set(['demandCut', 'truce:tollCut', 'mercy:sparedCut']);
+
+function demandKindChanged(world: World, call: Call): boolean {
+  const asked = call.topic === 'demand' || call.topic === 'demandCut' ? call.topic : `${call.topic}:${call.node}`;
+  const wantsCargo = CARGO_ASKS.has(asked);
+  if (!wantsCargo && !CUT_ASKS.has(asked)) return false;
+  const robber = world.vehicles.find((v) => v.id === call.with);
+  if (!robber) return false;
+  return ransomOf(world, robber, playerVehicle(world)).haul.length > 0 !== wantsCargo;
+}
+
 function repairCall(world: World): void {
   const call = world.player.call;
   if (!call) return;
-  if (taleLacksStory(call) || !talkFits(call) || !isLine(call.line.line) || !varsFit(call.vars) || !varsFit(call.line.vars)) world.player.call = null;
+  if (taleLacksStory(call) || demandKindChanged(world, call) || !talkFits(call) || !isLine(call.line.line) || !varsFit(call.vars) || !varsFit(call.line.vars)) world.player.call = null;
 }
