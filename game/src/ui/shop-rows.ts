@@ -11,11 +11,12 @@ import { getResources } from "../sim/resources";
 import type { CrimeCase, RoadNews, Vehicle, World } from "../sim/types";
 import { caseOwed, deskRows, payAtDesk, settleAtDesk, type SettlementQuote } from "../sim/crime";
 import { list, num, PLUS, SPACE, t, type Msg } from "../text/msg";
-import { chassisAbilityLine, chassisAbilityName, chassisName, factionName, goodName, refusalText, siteName, vehicleTitle } from "../text/names";
-import { chassisMap, chassisPortrait, chassisStats, createIcon, createItemIcon, createItemTipIcon, diffStats, itemTip, segmentGauge, statGrid } from "./cards";
+import { factionName, goodName, refusalText, siteName, vehicleTitle } from "../text/names";
+import { chassisPortrait, createIcon, createItemIcon, createItemTipIcon, itemTip, segmentGauge } from "./cards";
 import { el, type Child } from "./dom";
 import { caseVictimName, clock, estimateText, estimateTitle, gameHours, GOODS_COLUMNS, PROFIT_HEAD_TITLE, saleEstimate, type SaleEstimate } from "./format";
 import { seesAll } from "./see-all";
+import type { PartRows } from "./part-rows";
 import { RowSlots, type SlotRow } from "./row-slots";
 import { coinEl, fuelLiters, moneyEl, moneyMsg, pricedEl, priceTag } from "./units";
 
@@ -241,38 +242,12 @@ const SLOT_NAMES: Record<PaintSlot, () => Msg> = { body: () => t("paint.body"), 
 
 export type SwapOffer = { reason: Msg | null; swap: () => void };
 
-export function truckCards(w: World, ids: readonly string[], offer: (id: string) => SwapOffer, slots: RowSlots, list: string): HTMLElement {
+export function truckRows(w: World, ids: readonly string[], offer: (id: string) => SwapOffer, rows: PartRows, list: string): HTMLElement {
   const mine = playerVehicle(w).chassisId;
-  const cards = ids.map((id) => {
-    const own = mine === id;
-    const swap = own ? null : swapButton(w, id, offer);
-    const card = el(
-      "div",
-      { class: `card tile truck-card${own ? " own" : ""}` },
-      el("div", { class: "truck-pics" }, chassisPortrait(id, w.player.paint), chassisMap(id)),
-      el(
-        "div",
-        { class: "truck-body" },
-        el(
-          "div",
-          { class: "truck-head" },
-          el("div", { class: "card-name" }, el("b", {}, chassisName(id))),
-          swap ?? el("span", { class: "dim" }, t("vehicle.yours")),
-        ),
-        chassisFeatureRow(id),
-        statGrid(diffStats(chassisStats(id), own ? null : chassisStats(mine))),
-      ),
-    );
-    return { id, row: card, action: swap, done: t("trade.done.swapped") };
-  });
-  return el("div", { class: "cards trucks" }, ...slots.place(list, cards));
-}
-
-function chassisFeatureRow(id: string): HTMLElement | null {
-  const name = chassisAbilityName(id);
-  const line = chassisAbilityLine(id);
-  if (!name || !line) return null;
-  return el("div", { class: "dim chassis-feature" }, el("b", {}, name), SPACE, line);
+  return rows.chassisList(
+    list,
+    ids.map((id) => ({ world: w, chassisId: id, action: mine === id ? null : swapButton(w, id, offer), done: t("trade.done.swapped") })),
+  );
 }
 
 function swapButton(w: World, id: string, makeOffer: (id: string) => SwapOffer): HTMLElement {

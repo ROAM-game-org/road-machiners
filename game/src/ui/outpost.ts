@@ -20,7 +20,7 @@ import { PartRows, type PartRow } from "./part-rows";
 import type { TruckPaint } from "../data/chassis";
 import { RowSlots } from "./row-slots";
 import { TAB_ICON, type Tab } from "./town";
-import { buyButton, caption, keepFocus, priceHead, reasonButton, repairBar, screenButton, serviceSupplyRow, shortBy, truckCards, type ShopCommand } from "./shop-rows";
+import { buyButton, caption, keepFocus, priceHead, reasonButton, repairBar, screenButton, serviceSupplyRow, shortBy, truckRows, type ShopCommand } from "./shop-rows";
 
 const REPAIR_GOOD = "parts";
 export const OUTPOST_TABS = ["market", "buyParts", "sellParts", "trucks", "paint"] as const satisfies readonly Tab[];
@@ -197,7 +197,7 @@ export class OutpostScreen {
     const offer = outpostTrucks(w, post);
     const list = `trucks:${this.shown}`;
     if (offer.length === 0 && !this.slots.has(list)) return el("div", { class: "dim" }, t("outpost.soldOut"));
-    return truckCards(w, offer, (id) => ({ reason: this.swapReason(w, id), swap: () => this.run((x) => outpostBuyChassis(x, id)) }), this.slots, list);
+    return truckRows(w, offer, (id) => ({ reason: this.swapReason(w, id), swap: () => this.run((x) => outpostBuyChassis(x, id)) }), this.rows, list);
   }
 
   private swapReason(w: World, id: string): Msg | null {

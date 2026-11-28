@@ -50,7 +50,7 @@ import { compareBase, createIcon, createItemTipIcon, itemTip, type IconName } fr
 import { PartRows, type PartRow } from "./part-rows";
 import { filteredStock, garageHead, garagePartRow, GARAGE_TABS, goodSellCell, paintBody, partList, sellPartsBody, stockFilterChips, type GarageList, type GarageTab, type StockFilter } from "./garage-tabs";
 import { RowSlots, type SlotRow } from "./row-slots";
-import { buyButton, caption, countCell, deskBody, goodsClass, goodsHead, keepFocus, lotLabel, marketHints, newsWell, owedTitle, priceHead, profitCell, recipeLine, stockedGoodName, untradedHeld, suppliesHead, tradeEstimate, limitedSupplyRow, serviceSupplyRow, reasonButton, rowButton, screenButton, repairBar, shortBy, supplyAmount, supplyCap, supplyLine, truckCards, sellButton, type PriceHint } from "./shop-rows";
+import { buyButton, caption, countCell, deskBody, goodsClass, goodsHead, keepFocus, lotLabel, marketHints, newsWell, owedTitle, priceHead, profitCell, recipeLine, stockedGoodName, untradedHeld, suppliesHead, tradeEstimate, limitedSupplyRow, serviceSupplyRow, reasonButton, rowButton, screenButton, repairBar, shortBy, supplyAmount, supplyCap, supplyLine, truckRows, sellButton, type PriceHint } from "./shop-rows";
 import { chipEl, truckChips } from "./chip";
 import { el, isBrowserChord, panel } from "./dom";
 import { ArtBand } from "./art-band";
@@ -604,10 +604,10 @@ export class TownScreen {
   }
 
   private trucks(w: World, shopId: string): HTMLElement {
-    return truckCards(w, garageChassis(shopId), (id) => ({
+    return truckRows(w, garageChassis(shopId), (id) => ({
       reason: chassisPrice(w, id) < 0 ? null : shortBy(w.player.money, chassisPrice(w, id)),
       swap: () => this.run((x) => buyChassis(x, id)),
-    }), this.slots, "trucks");
+    }), this.rows, "trucks");
   }
 
   private paint(w: World): HTMLElement {

@@ -16,8 +16,8 @@ import { noteError } from "../three/crash";
 import { publicUrl } from "../public-url";
 import { ITEM_TONES, paintSheetPixels, playerColors } from "../render/palette";
 import ICONS from "../data/item-icons.json";
-import { num, t, type Msg } from "../text/msg";
-import { chassisName, goodLore, goodName, partLore, partName } from "../text/names";
+import { num, SPACE, t, type Msg } from "../text/msg";
+import { chassisAbilityLine, chassisAbilityName, chassisName, goodLore, goodName, partLore, partName } from "../text/names";
 import { say } from "../text/language";
 import { roundDamage } from "../sim/combat";
 import { el, type Child } from "./dom";
@@ -620,6 +620,13 @@ export function compareBase(selected: PartInstance | null, part: PartInstance): 
 
 function compareLine(base: PartInstance): HTMLElement {
   return el("div", { class: "card-compare" }, t("stat.compared", { part: partName(base.defId) }), conditionTag(base));
+}
+
+export function chassisFeatureRow(id: string): HTMLElement | null {
+  const name = chassisAbilityName(id);
+  const line = chassisAbilityLine(id);
+  if (!name || !line) return null;
+  return el("div", { class: "dim chassis-feature" }, el("b", {}, name), SPACE, line);
 }
 
 export function chassisMap(chassisId: string): HTMLElement {
