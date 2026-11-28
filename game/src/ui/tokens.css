@@ -255,7 +255,10 @@
   --hud-tray-rim: var(--hud-rim-w);
   --hud-tray-side: var(--hud-rim-w);
   --hud-screen-radius: 5px;
-  --hud-screen-rim: 1.5px;
+  --hud-screen-rim: 3px;
+  --hud-screen-inset: calc(100% - 2 * var(--hud-screen-rim));
+  --hud-arc-chip-w: 44px;
+  --hud-arc-icon: 20px;
   --hud-ink-line: 1px;
   --hud-brass: #96703c;
   --hud-brass-ink: #1c0e06;
@@ -268,7 +271,7 @@
   --hud-frame-slice: 2.74% 1.83%;
   --hud-frame-bevel: 8px;
   --hud-screen-slice: 13.6% 6.8%;
-  --hud-screen-glass: repeating-linear-gradient(to bottom, transparent 0 var(--hud-crt-row), var(--hud-crt-scan) var(--hud-crt-row) calc(2 * var(--hud-crt-row))), radial-gradient(ellipse 75% 85% at 50% 50%, transparent 62%, var(--hud-crt-vignette) 100%), linear-gradient(160deg, var(--hud-crt-sheen) 0, var(--hud-crt-sheen-fade) 22%, transparent 38%), var(--hud-crt-fill);
+  --hud-screen-glass: repeating-linear-gradient(to bottom, transparent 0 var(--hud-crt-row), var(--hud-crt-scan) var(--hud-crt-row) calc(2 * var(--hud-crt-row))) center / var(--hud-screen-inset) var(--hud-screen-inset) no-repeat, radial-gradient(ellipse 75% 85% at 50% 50%, transparent 62%, var(--hud-crt-vignette) 100%) center / var(--hud-screen-inset) var(--hud-screen-inset) no-repeat, linear-gradient(160deg, var(--hud-crt-sheen) 0, var(--hud-crt-sheen-fade) 22%, transparent 38%) center / var(--hud-screen-inset) var(--hud-screen-inset) no-repeat, var(--hud-crt-fill) center / var(--hud-screen-inset) var(--hud-screen-inset) no-repeat, linear-gradient(var(--hud-brass), var(--hud-brass));
   --hud-screen-shade: inset 0 0 var(--space-4) var(--hud-crt-edge), inset 0 var(--space-1) var(--space-2) var(--hud-crt-edge);
   --goods-count-w: 9ch;
   --town-split-min: 260px;
