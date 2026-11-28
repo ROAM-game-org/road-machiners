@@ -28,6 +28,11 @@ function supplyLevel(e: Extract<GameEvent, { t: 'supply' }>): LogLevel {
   return e.note.id === 'filledSupplies' ? 'info' : 'notable';
 }
 
+function jobLevel(_: World, e: Extract<GameEvent, { t: 'job' }>): LogLevel {
+  if (e.outcome === 'started' || e.outcome === 'skipped') return 'info';
+  return e.outcome === 'cancelled' && e.job.kind === 'repair' ? 'info' : 'notable';
+}
+
 const EVENT_LEVELS: { [K in GameEvent['t']]: Leveled<K> } = {
   roadHorn: 'info',
   activity: 'info',
@@ -51,7 +56,7 @@ const EVENT_LEVELS: { [K in GameEvent['t']]: Leveled<K> } = {
   claymoreCookOff: 'info',
   found: 'notable',
   say: 'info',
-  job: (_, e) => (e.outcome === 'started' || e.outcome === 'skipped' ? 'info' : 'notable'),
+  job: jobLevel,
   weather: 'info',
   honk: 'info',
   patch: (world, e) => (e.outcome === 'broken' ? 'info' : involvesPlayer(world, e.patcher, e.client)),

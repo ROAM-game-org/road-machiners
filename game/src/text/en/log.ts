@@ -118,7 +118,7 @@ export const LOG = {
   'log.damageLead': ': ',
   'log.damageSep': ', ',
   'log.jobStarted': m('{what} started: stay parked about {n, plural, one {# turn} other {# turns}}.', { what: 'text', n: 'count' }),
-  'log.jobCancelled': m('{what} cancelled: the truck moved, a hostile came into sight, or a needed item changed', { what: 'text' }),
+  'log.jobCancelled': m('{what} cancelled', { what: 'text' }),
   'log.jobSkipped': m('{what} skipped: {reason}', { what: 'text', reason: 'text' }),
   'log.jobDone': m('{what} done', { what: 'text' }),
   'log.weather.storm.started': 'Dust storm started',

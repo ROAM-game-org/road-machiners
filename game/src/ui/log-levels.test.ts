@@ -52,6 +52,29 @@ describe("log levels", () => {
     expect(eventLevel(w, { t: "partDisabled", vehicle: raider.id, part: coreOf(raider, "cab").id })).toBe("info");
   });
 
+  it("keeps a stopped repair in Verbose and every other stopped job in Brief", () => {
+    const { w, me, plate } = fight();
+    const job = (kind: "repair" | "strip" | "weld", outcome: "started" | "done" | "cancelled", auto = false): GameEvent =>
+      ({ t: "job", vehicle: me.id, job: { kind, partId: plate.id, parts: 1, turnsLeft: 2, total: 3, auto }, outcome }) as unknown as GameEvent;
+    for (const auto of [true, false]) {
+      expect(eventEntry(w, job("repair", "cancelled", auto))).toMatchObject({ level: "info", reach: "verbose" });
+    }
+    expect(eventEntry(w, job("strip", "cancelled"))).toMatchObject({ level: "notable", reach: "both" });
+    expect(eventEntry(w, job("weld", "cancelled"))).toMatchObject({ level: "notable", reach: "both" });
+    expect(eventEntry(w, job("repair", "done"))).toMatchObject({ level: "notable", reach: "both" });
+    expect(eventEntry(w, job("repair", "started"))).toMatchObject({ level: "info", reach: "verbose" });
+  });
+
+  it("words a stopped repair in one short line in both languages", () => {
+    const { w, me, plate } = fight();
+    const stopped = { t: "job", vehicle: me.id, job: { kind: "repair", partId: plate.id, parts: 1, turnsLeft: 2, total: 3, auto: true }, outcome: "cancelled" } as unknown as GameEvent;
+    const entry = eventEntry(w, stopped)!;
+    expect(resolve(entry.text, "en")).toBe("Repair Steel plate cancelled");
+    const ru = resolve(entry.text, "ru");
+    expect(ru).not.toContain("Грузовик сдвинулся");
+    expect(ru).not.toMatch(/[A-Za-z]/);
+  });
+
   it("levels supply notes by what they ask of the player", () => {
     const { w } = fight();
     expect(eventLevel(w, { t: "supply", what: "supplies", note: { id: "outOfSupplies" } } as GameEvent)).toBe("attention");
