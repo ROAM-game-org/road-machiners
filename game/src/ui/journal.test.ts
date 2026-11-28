@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fetchAsset } from '../fetch-asset';
+import { REGION } from '../data/region';
 import { TIME } from '../data/time';
 import { emptyWorld } from '../sim/testkit';
 import { claimLeads, journalEntries, journalTabs, JournalScreen } from './journal';
@@ -328,11 +329,34 @@ describe('journal screen', () => {
     const w = emptyWorld();
     w.player.contracts = [claim([{ turn: 20, from: { x: 100, y: 80 }, driver: 'Jed Cobb' }])];
 
-    const detail = openJournal(w).all((n) => n.className === 'journal-detail');
+    const detail = openJournal(w).all((n) => n.className === 'journal-detail claim');
 
     expect(detail).toHaveLength(1);
     expect(detail[0].text()).toContain('north of where we talked, about 100 m out');
     expect(detail[0].text()).toContain('Jed Cobb');
+  });
+
+  it('keeps the shop clue of a held claim under its title, before any leads', () => {
+    const orchard = REGION.locations.find((l) => l.id === 'orchard')!;
+    const held = { ...claim([{ turn: 20, from: { x: 100, y: 80 }, driver: 'Jed Cobb' }]), stockId: 'armyTruck-1', at: { ...orchard.pos } };
+    const w = emptyWorld();
+    w.player.contracts = [held];
+
+    const detail = openJournal(w).all((n) => n.className === 'journal-detail claim')[0];
+    const text = detail.text();
+
+    expect(text).toMatch(/About .+ of Bowl\./);
+    expect(text).toContain('In ');
+    expect(text.indexOf('of Bowl')).toBeLessThan(text.indexOf('Jed Cobb'));
+    expect(text).not.toContain('square');
+  });
+
+  it('shows the clue of a held claim that has no leads', () => {
+    const orchard = REGION.locations.find((l) => l.id === 'orchard')!;
+    const w = emptyWorld();
+    w.player.contracts = [{ ...claim(), stockId: 'armyTruck-1', at: { ...orchard.pos } }];
+
+    expect(openJournal(w).all((n) => n.className === 'journal-detail claim')[0].text()).toMatch(/of Bowl\./);
   });
 
   const surveyOf = (sites: string[], states: { found: boolean; done: boolean }[] = []): Extract<Contract, { kind: 'survey' }> => ({

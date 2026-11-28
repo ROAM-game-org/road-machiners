@@ -10,7 +10,8 @@ class FakeNode {
   children: FakeNode[] = [];
   constructor(readonly tag: string, readonly text = "") {}
   append(...c: FakeNode[]) { this.children.push(...c); }
-  setAttribute() {}
+  attrs: Record<string, string> = {};
+  setAttribute(k: string, v: string) { this.attrs[k] = v; }
   addEventListener() {}
   get textContent(): string { return this.text + this.children.map((c) => c.textContent).join(""); }
 }
@@ -91,7 +92,7 @@ describe("held clocks in a row", () => {
   const base = { shop: "bowl", reward: 1, deadline: 100, window: 100, tier: 1 } as const;
   const claim: Contract = { ...base, id: "c", kind: "claim", stockId: "tank-3", at: { x: 300, y: 40 }, partId: "p1", defId: "mg", rivalAt: 100, rival: null, leads: [] };
 
-  it("counts down a held job and keeps a claim short", () => {
+  it("counts down a held job with a short claim title", () => {
     const row = heldContractRow(emptyWorld(), claim) as unknown as FakeNode;
     expect(row.textContent).toMatch(/\d+:\d\d left/);
     expect(row.textContent).not.toMatch(/about .* out/);
@@ -153,5 +154,14 @@ describe("one row form for every kind", () => {
       expect(row.children, c.id).toHaveLength(4);
       expect(row.textContent, c.id).not.toMatch(/Leave by|Take the road/);
     }
+  });
+
+  it("keeps a held claim's title short and carries its clue as the title tooltip", () => {
+    const { w } = trader();
+    const c: Contract = { id: "c", shop: "bowl", kind: "claim", stockId: "tank-3", at: { x: 300, y: 40 }, partId: "p1", defId: "mg", reward: 1, deadline: 100, window: 100, tier: 1, rivalAt: 100, rival: null, leads: [], };
+    const row = boardHeldRow(w, c, new FakeNode("button") as unknown as HTMLElement) as unknown as FakeNode;
+    const title = row.children[1]!.children[0]!;
+    expect(title.textContent).not.toMatch(/Bowl/);
+    expect(title.attrs.title).toMatch(/of Bowl/);
   });
 });

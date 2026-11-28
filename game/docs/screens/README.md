@@ -30,6 +30,7 @@ Every image shows a new game on seed 4242, in English, at 1280 by 720, the small
 - `downed.jpg`: the inventory on a truck that gave up or was knocked out, with the state as the first line of its screen.
 - `character.jpg`: the character screen, skills.
 - `world-map.jpg`: the character screen, map.
+- `journal-claim.jpg`: the journal with a held salvage claim, its clue and two leads.
 - `journal-survey.jpg`: the journal with a survey contract.
 - `full-shop.jpg`: the debug shop that holds every part.
 

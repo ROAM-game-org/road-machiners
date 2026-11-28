@@ -756,6 +756,19 @@ function claimSummary(c: Extract<Contract, { kind: 'claim' }>): Msg {
   return clue.where ? t('contract.salvageAt', { ...words, place, where: claimWhereText(clue.where) }) : t('contract.salvageIn', { ...words, place });
 }
 
+export function claimClueLines(c: Extract<Contract, { kind: 'claim' }>): Msg[] {
+  const clue = claimClue(c);
+  const bearing = t('journal.placeBearing', { distance: distanceText(clue.distance), dir: compassText(clue.angle), site: siteName(c.shop) });
+  if (!clue.territory) return [bearing];
+  const place = siteName(clue.territory);
+  return [bearing, clue.where ? t('journal.claimAt', { place, where: claimWhereText(clue.where) }) : t('journal.claimIn', { place })];
+}
+
+export function claimClueTip(c: Extract<Contract, { kind: 'claim' }>): Msg {
+  const lines = claimClueLines(c);
+  return concat(lines.flatMap((line, i) => (i === 0 ? [line] : [SPACE, line])));
+}
+
 export function claimLookText(look: ClaimLook): Msg {
   return t(`claim.look.${look}`);
 }
