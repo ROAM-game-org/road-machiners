@@ -783,6 +783,8 @@ export const SCREENS = {
   'journal.from': m('From {site}', { site: 'text' }),
   'journal.placeLay': m('Lies {lay}.', { lay: 'text' }),
   'journal.placeBearing': m('About {distance} {dir} of {site}.', { distance: 'text', dir: 'text', site: 'text' }),
+  'journal.claimIn': m('In {place}.', { place: 'text' }),
+  'journal.claimAt': m('In {place}, {where}.', { place: 'text', where: 'text' }),
   'journal.day': m('Day {day}', { day: 'int' }),
   'journal.wreckSquare': m('Square {square}', { square: 'text' }),
   'journal.wrecksInSquare': m('Square {square}, {n, plural, one {# wreck} other {# wrecks}}', { square: 'text', n: 'count' }),
